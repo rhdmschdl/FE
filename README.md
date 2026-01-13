@@ -16,11 +16,11 @@
 | `rename`   | 🔄 파일 경로 변경 혹은 파일 이름 변경        |
 
 ### 📌 Branch 컨벤션
-
 - feature/issue-이슈번호
   - feat -> feature로 작성
   - 나머지는 커밋 컨벤션 적용  
     ex) style/issue-01
+- develop 브랜치에서 브랜치를 따서 작업 후 충분히 테스트 한 뒤 main브랜치로 병합하여 출시
 
 ### 📌 폴더구조
 
