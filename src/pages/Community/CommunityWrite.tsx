@@ -6,6 +6,8 @@ import MediaUploader from "@/components/media/MediaUploader";
 import CommunityTab from "@/components/community/CommunityTab";
 import { BtnBasic } from "@/components/common/Button/Btn";
 import { useNavigate } from "react-router-dom";
+import createCommunityPost from "@/apis/mutations/community/createPost";
+import { MediaRole } from "@/enums/mediaRole";
 
 export default function CommunityWrite() {
   const navigate = useNavigate();
@@ -44,22 +46,32 @@ export default function CommunityWrite() {
   const isMediaValid = useMemo(() => {
     if (!mediaItems || mediaItems.length === 0) return false;
 
+    const normalizeType = (t: any): "image" | "video" | undefined => {
+      if (!t) return undefined;
+      const s = String(t).toUpperCase();
+      if (s.includes("IMAGE")) return "image";
+      if (s.includes("VIDEO")) return "video";
+
+      if (s.startsWith("IMAGE/")) return "image";
+      if (s.startsWith("VIDEO/")) return "video";
+      return undefined;
+    };
+
     // 안전한 필드명 추출
-    const normalized = mediaItems.map((m) => ({
-      ...m,
-      _type: (m as any).type ?? (m as any).mediaType,
-      _isRep: !!(m as any).isRepresentative,
-    }));
+    const normalized = mediaItems.map((m) => {
+      const rawType = (m as any).mediaType ?? (m as any).type;
+      return {
+        ...m,
+        _type: normalizeType(rawType),
+        _isRep: !!(m as any).isRepresentative,
+      };
+    });
 
-    // 최소 하나의 이미지가 있어야 함
-    const hasImage = normalized.some((m) => m._type === "image");
-    if (!hasImage) return false;
+    // 항목이 하나이면(이미지든 비디오든) 유효
+    if (normalized.length === 1) return true;
 
-    // 아이템이 하나뿐이면 (이미지 한 장) 유효
-    if (normalized.length === 1) return normalized[0]._type === "image";
-
-    // 복수 아이템이면 대표 이미지가 지정되어야 유효
-    return normalized.some((m) => m._isRep && m._type === "image");
+    // 복수 항목이면 반드시 대표가 하나 지정되어 있어야 유효
+    return normalized.some((m) => m._isRep === true);
   }, [mediaItems]);
 
   const isTitleValid = useMemo(
@@ -92,14 +104,86 @@ export default function CommunityWrite() {
 
   const handleSubmit = async () => {
     if (!isFormValid) return;
-    const mediaIds = mediaItems.map((m) => m.serverId).filter(Boolean);
-    const payload = { title, content, category, mediaIds };
+
+    // 업로드 미완료 확인
+    const pending = mediaItems.some(
+      (m: any) =>
+        (m.uploadStatus && m.uploadStatus !== "SUCCESS") ||
+        !(m.serverId ?? m.fileId ?? m.id)
+    );
+    if (pending) {
+      alert(
+        "미디어 업로드가 아직 완료되지 않았습니다. 완료 후 다시 시도해 주세요."
+      );
+      return;
+    }
+
+    // 1) 기본 매핑
+    const mapped = mediaItems
+      .map((m: any) => {
+        const fileId = m.serverId ?? m.fileId ?? m.id ?? null;
+        if (!fileId) return null;
+        return {
+          fileId,
+          mediaRole: m.isRepresentative ? MediaRole.PREVIEW : MediaRole.CONTENT,
+          sequence: typeof m.sequence === "number" ? m.sequence : undefined,
+        };
+      })
+      .filter(Boolean) as {
+      fileId: string | number;
+      mediaRole: string;
+      sequence?: number;
+    }[];
+
+    // 2) sequence 검증/정규화: 누락/중복이 있으면 mediaItems 순서대로 0,1,2...로 재할당
+    const seqCounts = new Map<number, number>();
+    mapped.forEach((f) => {
+      if (typeof f.sequence === "number") {
+        seqCounts.set(f.sequence, (seqCounts.get(f.sequence) ?? 0) + 1);
+      }
+    });
+
+    const hasMissing = mapped.some((f) => typeof f.sequence !== "number");
+    const hasDup = Array.from(seqCounts.values()).some((c) => c > 1);
+
+    let filesFinal = mapped;
+    if (hasMissing || hasDup) {
+      // 재할당: mediaItems 순서(프론트에서 보여지는 순서)에 따라 재부여
+      filesFinal = mediaItems
+        .map((m: any, idx: number) => {
+          const fileId = m.serverId ?? m.fileId ?? m.id ?? null;
+          if (!fileId) return null;
+          return {
+            fileId,
+            mediaRole: m.isRepresentative
+              ? MediaRole.PREVIEW
+              : MediaRole.CONTENT,
+            sequence: idx,
+          };
+        })
+        .filter(Boolean) as {
+        fileId: string | number;
+        mediaRole: string;
+        sequence: number;
+      }[];
+    }
+
+    // 검증: 길이 일치 여부
+    if (filesFinal.length !== mediaItems.length) {
+      alert(
+        "업로드가 아직 완료되지 않았거나 fileId가 누락되었습니다. 업로드 상태를 확인해 주세요."
+      );
+      return;
+    }
+
+    const payload = { title, content, category, files: filesFinal };
+
     try {
-      // await api.createCommunityPost(payload);
-      console.log("submit", payload);
+      const resp = await createCommunityPost(payload);
+      console.log("게시글 생성 성공:", resp);
       navigate("/community");
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      alert(e?.message ?? "게시글 생성 중 오류가 발생했습니다.");
     }
   };
 

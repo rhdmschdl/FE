@@ -8,7 +8,7 @@ interface EventListModalProps {
   onClose: () => void;
   date: Date | null;
   label: LabelData[];
-  onDelete?: (label: LabelData) => void; // ✅ 추가
+  onDelete?: (label: LabelData[]) => void; // ✅ 추가
 }
 
 const EventListModal = ({
@@ -66,28 +66,21 @@ const EventListModal = ({
   };
 
   // ✅ 삭제 대상에 추가/제거
-  const toggleDeleteTarget = (targetLabel: LabelData) => {
-    setDeleteTargets((prev) => {
-      const exists = prev.some(
-        (l) => l.date === targetLabel.date && l.title === targetLabel.title
-      );
-      if (exists) {
-        return prev.filter(
-          (l) => !(l.date === targetLabel.date && l.title === targetLabel.title)
-        );
-      }
-      return [...prev, targetLabel];
-    });
+  const toggleDeleteTarget = (target: LabelData) => {
+    setDeleteTargets((prev) =>
+      prev.some((l) => l.id === target.id)
+        ? prev.filter((l) => l.id !== target.id)
+        : [...prev, target]
+    );
   };
 
   // ✅ 저장 시 실제 삭제 실행
   const onSave = () => {
-    deleteTargets.forEach((target) => {
-      onDelete?.(target);
-    });
+    if (deleteTargets.length === 0) return;
+    onDelete?.(deleteTargets);   // ✅ 선택된 라벨들 모두 전달
     setDeleteTargets([]);
     setIsEdit(false);
-    console.log("삭제 완료:", deleteTargets);
+    onClose();
   };
 
   const onCancel = () => {
@@ -96,11 +89,8 @@ const EventListModal = ({
   };
 
   // 삭제 대상인지 확인
-  const isDeleteTarget = (targetLabel: LabelData) => {
-    return deleteTargets.some(
-      (l) => l.date === targetLabel.date && l.title === targetLabel.title
-    );
-  };
+  const isDeleteTarget = (target: LabelData) =>
+    deleteTargets.some((l) => l.id === target.id);
 
   return (
     <div
@@ -118,7 +108,7 @@ const EventListModal = ({
         </div>
 
         {/* 이벤트 목록 */}
-        <div className="w-165 flex flex-col gap-5 max-h-95 overflow-y-auto">
+        <div className="w-165 flex flex-col gap-5 min-h-95 overflow-y-auto">
           {label.length === 0 ? (
             <div className="w-165 h-full flex items-center justify-center">
               <p className="typo-body1 text-color-mid text-center pt-12 pb-8">
@@ -129,16 +119,15 @@ const EventListModal = ({
             label.map((label, idx) => (
               <div
                 key={idx}
-                className={`w-165 h-25 flex items-center py-1 gap-3 rounded-lg transition-all ${
-                  isDeleteTarget(label)
-                    ? "bg-red-100 opacity-50" // ✅ 삭제 대상 스타일
-                    : "bg-surface-container-10"
-                }`}
+                className={`w-165 h-25 flex items-center py-1 gap-3 rounded-lg transition-all ${isDeleteTarget(label)
+                  ? "bg-red-100 opacity-50" // ✅ 삭제 대상 스타일
+                  : "bg-surface-container-10"
+                  }`}
               >
                 {/* 색상 인디케이터 */}
                 <div
                   className="w-5 h-25 rounded-l-lg flex-shrink-0"
-                  style={{ backgroundColor: label.color?.color || "#82BEF5" }}
+                  style={{ backgroundColor: label.color || "#82BEF5" }}
                 />
                 {/* 이벤트 정보 */}
                 <div className=" flex flex-col gap-2.5">
@@ -176,11 +165,10 @@ const EventListModal = ({
                     className="cursor-pointer p-2"
                   >
                     <Trash2
-                      className={`w-6 h-6 ${
-                        isDeleteTarget(label)
-                          ? "text-red-500"
-                          : "text-color-high"
-                      }`}
+                      className={`w-6 h-6 ${isDeleteTarget(label)
+                        ? "text-red-500"
+                        : "text-color-high"
+                        }`}
                     />
                   </button>
                 )}

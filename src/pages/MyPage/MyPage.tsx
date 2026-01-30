@@ -2,13 +2,10 @@ import ProfileMenu from "@/components/mypage/ProfileMenu";
 import type { ProfileMenuItem } from "@/components/mypage/ProfileMenu";
 import ProfileBadge from "@/components/common/ProfileBadge";
 import footerImage from "../../assets/images/footer.png";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export default function MyPage() {
-  const currentUser = {
-    id: "u3",
-    nickname: "테스트",
-    avatarUrl: "undefiend",
-  };
+  const currentUser = useAuthStore((state) => state.user);
 
   const items: ProfileMenuItem[] = [
     {

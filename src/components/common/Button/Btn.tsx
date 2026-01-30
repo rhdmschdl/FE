@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { twMerge } from "tailwind-merge";
 
 type BtnProps = {
@@ -9,6 +10,8 @@ type BtnProps = {
   startIcon?: React.ReactNode; // 왼쪽 아이콘
   endIcon?: React.ReactNode; // 오른쪽 아이콘
   selected?: boolean; // 선택된 상태인지 여부
+  color?: string;
+  hoverColor?: string;
 };
 
 const BtnBasic = ({
@@ -17,27 +20,44 @@ const BtnBasic = ({
   onClick,
   className,
   disabled = false,
+  color,
+  hoverColor,
 }: BtnProps) => {
+  const [isHovered, setIsHovered] = useState(false);
+
   const base =
-    "w-[180px] h-[48px] px-[30px] py-[10px] rounded-[8px] cursor-pointer typo-body3-semibold transition-colors transition-colors";
+    "w-[180px] h-[48px] px-[30px] py-[10px] rounded-[8px] cursor-pointer typo-body3-semibold transition-colors";
   const enabledGray = "bg-surface-container-20 text-color-highest";
   const enabledBlue = "bg-brand-blue-400 text-color-lowest";
   const hoverActiveGray =
     "hover:bg-surface-container-30 hover:text-color-highest active:bg-surface-container-40 active:text-color-highest";
   const hoverActiveBlue =
-    "hover:bg-brand-blue-300 hover:text-color-lowest active:bg-brand-blue-200  active:text-color-lowest";
+    "hover:bg-brand-blue-300 hover:text-color-lowest active:bg-brand-blue-200 active:text-color-lowest";
   const disabledCls =
     "bg-surface-container-30 text-color-highest cursor-not-allowed";
+
+  const customStyle =
+    color && !disabled
+      ? { backgroundColor: isHovered && hoverColor ? hoverColor : color }
+      : undefined;
+
   return (
     <button
       type="button"
       aria-disabled={disabled}
       disabled={disabled}
       onClick={disabled ? undefined : onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={customStyle}
       className={twMerge(
         base,
         disabled ? disabledCls : variant === "gray" ? enabledGray : enabledBlue,
-        disabled ? "" : variant === "gray" ? hoverActiveGray : hoverActiveBlue,
+        disabled || color
+          ? ""
+          : variant === "gray"
+            ? hoverActiveGray
+            : hoverActiveBlue,
         className
       )}
     >

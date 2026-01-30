@@ -5,6 +5,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BtnBasic } from "@/components/common/Button/Btn";
 import { Eye, EyeOff } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { sendVerificationCode, verifyEmailCode } from "@/apis/mutations/auth/signup";
+import { resetPassword } from "@/apis/mutations/auth/resetPw";
 
 // 비밀번호 스키마
 const passwordSchema = z
@@ -39,6 +42,37 @@ const PasswordFind = () => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isPasswordCheckVisible, setIsPasswordCheckVisible] = useState(false);
 
+  // 이메일 인증번호 발송 mutation
+  const sendVerificationCodeMutation = useMutation({
+    mutationFn: sendVerificationCode,
+    onSuccess: (data) => {
+      console.log("인증번호 발송 성공:", data);
+    },
+    onError: (error) => {
+      console.error("인증번호 발송 실패:", error);
+    },
+  });
+  // 이메일 인증번호 확인 mutation
+  const verifyEmailCodeMutation = useMutation({
+    mutationFn: verifyEmailCode,
+    onSuccess: (data) => {
+      console.log("인증번호 확인 성공:", data);
+    },
+    onError: (error) => {
+      console.error("인증번호 확인 실패:", error);
+    },
+  });
+  // 비밀번호 재설정 mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: resetPassword,
+    onSuccess: (data) => {
+      console.log("비밀번호 재설정 성공:", data);
+    },
+    onError: (error) => {
+      console.error("비밀번호 재설정 실패:", error);
+    },
+  });
+
   const {
     register,
     watch,
@@ -64,7 +98,7 @@ const PasswordFind = () => {
 
     try {
       console.log("인증번호 발송:", email);
-
+      sendVerificationCodeMutation.mutate({ email });
       // 인증번호 발송 성공 시
       setEmailError("");
       setStep(2);
@@ -81,17 +115,9 @@ const PasswordFind = () => {
       setIsVerifying(true);
       setCodeError(""); // 에러 초기화
       console.log("인증번호 확인:", { email, verificationCode });
-
-      // API 응답으로 확인 => true일 경우 인증 성공
-      const isSuccess = true;
-
-      if (isSuccess) {
-        setIsVerified(true);
-        setStep(3);
-      } else {
-        //인증번호가 올바르지 않을 때
-        setCodeError("인증번호가 올바르지 않습니다.");
-      }
+      verifyEmailCodeMutation.mutate({ email, code: verificationCode, purpose: "PASSWORD_RESET" });
+      setIsVerified(true);
+      setStep(3);
     } catch (error) {
       setCodeError("인증번호가 올바르지 않습니다.");
     } finally {
@@ -102,6 +128,7 @@ const PasswordFind = () => {
   // 인증번호 재전송
   const handleResendCode = () => {
     console.log("인증번호 재발송:", email);
+    sendVerificationCodeMutation.mutate({ email });
     setVerificationCode("");
     setIsVerified(false);
   };
@@ -117,7 +144,7 @@ const PasswordFind = () => {
     try {
       // 비밀번호 재설정 API 호출
       console.log("비밀번호 재설정:", { email, password });
-
+      resetPasswordMutation.mutate({ email, password });
       alert("비밀번호가 성공적으로 변경되었습니다.");
       navigate("/login");
     } catch (error) {
@@ -211,10 +238,9 @@ const PasswordFind = () => {
                 disabled={isVerified}
                 className={`w-full h-[65px] p-5 rounded-xl border-2 typo-h2 
                   placeholder:text-color-low outline-none
-                  ${
-                    isVerified
-                      ? "border-green-500 bg-green-50 text-color-highest"
-                      : codeError
+                  ${isVerified
+                    ? "border-green-500 bg-green-50 text-color-highest"
+                    : codeError
                       ? "border-red-500 text-color-highest"
                       : "border-border-mid text-color-highest focus:border-brand-blue-400"
                   }
@@ -268,10 +294,9 @@ const PasswordFind = () => {
               <div
                 className={`h-[65px] gap-2.5 flex p-5 justify-between items-center rounded-xl border-2
                   focus-within:border-brand-blue-400
-                  ${
-                    touchedFields.password && password && errors.password
-                      ? "border-red-500"
-                      : "border-border-mid"
+                  ${touchedFields.password && password && errors.password
+                    ? "border-red-500"
+                    : "border-border-mid"
                   }`}
               >
                 <input
@@ -298,12 +323,11 @@ const PasswordFind = () => {
               <div
                 className={`h-[65px] gap-2.5 flex p-5 justify-between items-center rounded-xl border-2
                   focus-within:border-brand-blue-400
-                  ${
-                    touchedFields.passwordCheck &&
+                  ${touchedFields.passwordCheck &&
                     passwordCheck &&
                     errors.passwordCheck
-                      ? "border-red-500"
-                      : "border-border-mid"
+                    ? "border-red-500"
+                    : "border-border-mid"
                   }`}
               >
                 <input

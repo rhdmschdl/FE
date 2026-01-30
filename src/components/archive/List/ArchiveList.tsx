@@ -1,22 +1,19 @@
 import { useNavigate } from "react-router-dom";
 import ArchiveCard from "../ArchiveCard";
-import type { Archive } from "@/types/archive";
+import type { ArchiveListItem } from "@/types/archive";
 
-type Props = ArchiveListProps & {
+type ArchiveListProps = {
+  archive: ArchiveListItem[];
+  checkedMap?: Record<string, boolean>;
+  onToggleCheck?: (archiveId: string, checked: boolean) => void;
   isEditMode?: boolean;
 };
-
-interface ArchiveListProps {
-  archive: Archive[];
-  checkedMap?: Record<string, boolean>;
-  onToggleCheck?: (id: string, checked: boolean) => void;
-}
 const ArchiveList = ({
   archive,
   isEditMode = false,
   checkedMap = {},
   onToggleCheck,
-}: Props) => {
+}: ArchiveListProps) => {
   const navigate = useNavigate();
   return (
     <div className="w-310 flex flex-wrap items-start justify-start gap-x-20 gap-y-15">
@@ -24,10 +21,8 @@ const ArchiveList = ({
         <ArchiveCard
           key={archive.archiveId}
           archiveId={archive.archiveId}
-          userId={archive.userId}
           title={archive.title}
-          bannerUrl={archive.bannerUrl}
-          image={archive.image}
+          image={archive.thumbnailUrl}
           isEditMode={isEditMode}
           checked={!!checkedMap[String(archive.archiveId)]}
           onToggleCheck={onToggleCheck}

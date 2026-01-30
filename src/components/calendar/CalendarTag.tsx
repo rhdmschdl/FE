@@ -1,34 +1,41 @@
 import { X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type CalendarTagProps = {
   tags?: string[];
   onTagChange?: (data: { tags: string[] }) => void;
 };
 
-const CalendarTag = ({ tags }: CalendarTagProps) => {
+const CalendarTag = ({ tags, onTagChange }: CalendarTagProps) => {
   const [tag, setTag] = useState("");
   const [tagsState, setTagsState] = useState<string[]>(tags || []);
   const [error, setError] = useState<string | null>(null); // ✅ 에러 state 추가
 
+  // 🔁 edit 모드에서 props로 들어온 태그와 동기화
+  useEffect(() => {
+    setTagsState(tags || []);
+  }, [tags]);
+
   const handleAddTag = () => {
     const trimmedTag = tag.trim();
-
     if (trimmedTag === "") return;
 
-    // ✅ 중복 검사
     if (tagsState.includes(trimmedTag)) {
       setError("이미 등록된 태그입니다.");
       return;
     }
 
-    setTagsState([...tagsState, trimmedTag]);
+    const next = [...tagsState, trimmedTag];
+    setTagsState(next);
+    onTagChange?.({ tags: next });      // ✅ 부모로 변경사항 전달
     setTag("");
-    setError(null); // ✅ 성공 시 에러 초기화
+    setError(null);
   };
 
-  const handleDeleteTag = (tag: string) => {
-    setTagsState(tagsState.filter((t) => t !== tag));
+  const handleDeleteTag = (target: string) => {
+    const next = tagsState.filter((t) => t !== target);
+    setTagsState(next);
+    onTagChange?.({ tags: next });      // ✅ 부모로 변경사항 전달
   };
 
   return (
@@ -41,10 +48,9 @@ const CalendarTag = ({ tags }: CalendarTagProps) => {
           <input
             className={`w-[551px] h-10 border-2 rounded-lg 
               bg-surface-bg px-4 typo-body1 text-color-highest focus:outline-none placeholder:text-color-mid
-              ${
-                error
-                  ? "border-2 border-[#FF0000]"
-                  : "border-2 border-border-mid"
+              ${error
+                ? "border-2 border-[#FF0000]"
+                : "border-2 border-border-mid"
               }`} // ✅ 에러 시 빨간 테두리
             placeholder="태그명 입력"
             value={tag}

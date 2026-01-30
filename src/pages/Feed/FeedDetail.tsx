@@ -1,10 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { labelDataMock, stickerDataMock } from "@/mockData/calendarData";
-import { diaryDataMock } from "@/mockData/diaryData";
 import { galleryDataMock } from "@/mockData/galleryData";
-import { ticketDataMock } from "@/mockData/ticketData";
 import Banner from "@/components/community/Banner";
-import { feedDataMock } from "@/mockData/feedData";
 import { useParams } from "react-router-dom";
 import ArchiveHeader from "@/components/archive/ArchiveHeader";
 import Calendar from "@/components/calendar/Calendar";
@@ -16,28 +12,44 @@ import { repostDataMock } from "@/mockData/repostData";
 import ButtonLike from "@/components/archive/ButtonLike";
 import ArchiveTitle from "@/components/archive/ArchiveTitle";
 import EmptyFeedList from "@/components/feed/EmptyFeedList";
-import type { LabelData } from "@/types/calendar";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { GetArchiveDetail } from "@/apis/queries/archive/getArchive";
+import { LikeArchive } from "@/apis/mutations/archive/archive";
+import { getMonthlyEvents, getMonthlyStickers } from "@/apis/queries/calendar/Calendar";
 
 const FeedDetail = () => {
   const navigate = useNavigate();
-
+  const queryClient = useQueryClient();
   const urlParams = useParams();
   const archiveId = urlParams.id;
-  // 아카이브 데이터 조회
-  const feed = feedDataMock.find(
-    (feed) => feed.archiveId === Number(archiveId)
-  );
-  // 덕질 일기 데이터 조회
-  const diary = diaryDataMock.filter(
-    (diary) => diary.archiveId === Number(archiveId)
-  );
+
+  const { data: monthlyEvents } = useQuery({
+    queryKey: ["monthlyEvents", Number(archiveId)],
+    queryFn: () => getMonthlyEvents(Number(archiveId), new Date().getFullYear(), new Date().getMonth() + 1),
+  });
+
+  const { data: monthlyStickers } = useQuery({
+    queryKey: ["monthlyStickers", Number(archiveId)],
+    queryFn: () => getMonthlyStickers(Number(archiveId), new Date().getFullYear(), new Date().getMonth() + 1),
+  });
+  const { data: feed } = useQuery({
+    queryKey: ["feed", archiveId],
+    queryFn: () => GetArchiveDetail(Number(archiveId)),
+  });
+
+  const likeArchiveMutation = useMutation({
+    mutationFn: () => LikeArchive(Number(archiveId)),
+    onSuccess: (likedArchive) => {
+      queryClient.setQueryData(["feed", archiveId], likedArchive);
+    },
+    onError: (error) => {
+      console.error("좋아요 실패:", error);
+      alert("좋아요에 실패했습니다. 다시 시도해주세요.");
+    },
+  });
   // 덕질 갤러리 데이터 조회
   const gallery = galleryDataMock.filter(
     (gallery) => gallery.archiveId === Number(archiveId)
-  );
-  // 티켓 데이터 조회
-  const ticket = ticketDataMock.filter(
-    (ticket) => ticket.archiveId === Number(archiveId)
   );
   // 덕질 리포스트 데이터 조회
   const repost = repostDataMock.filter(
@@ -45,7 +57,7 @@ const FeedDetail = () => {
   );
   return (
     <div className="flex flex-col items-center justify-center">
-      <Banner image={feed?.bannerUrl} />
+      <Banner image={feed?.bannerUrl ?? ""} />
       {/* 배너 밑부분 */}
       <div className="max-w-[1920px] mx-auto flex flex-col items-start mt-[60px] gap-[60px]">
         {/* 아카이브 헤더 */}
@@ -54,26 +66,21 @@ const FeedDetail = () => {
           ownerNickname={feed?.ownerNickname}
           badge={feed?.badge}
           createdAt={feed?.createdAt}
+          isFeed={true}
         />
         {/* 아카이브 달력 */}
         <Calendar
-          labelData={labelDataMock as unknown as LabelData[]}
-          stickerData={stickerDataMock}
+          labelData={monthlyEvents}
+          stickerData={monthlyStickers}
           mode="readonly"
         />
         {/* 덕질 일기 */}
-        <ArchiveTitle
-          title="덕질 일기"
-          onClick={() => {
-            console.log("덕질 일기 더보기 클릭");
-          }}
-          isMore={(diary.length ?? 0) > 0}
+        <DiaryList
+          archiveId={archiveId}
+          limit={3}
+          isOwner={false}
+          emptyDescription="아직 작성된 일기가 없어요."
         />
-        {diary.length ?? 0 > 0 ? (
-          <DiaryList diary={diary} />
-        ) : (
-          <EmptyFeedList description="아직 작성된 일기가 없어요." />
-        )}
         {/* 덕질 갤러리 */}
         <ArchiveTitle
           title="덕질 갤러리"
@@ -82,26 +89,20 @@ const FeedDetail = () => {
             navigate(`/archive/${archiveId}/gallery`);
           }}
           isMore={(gallery.length ?? 0) > 0}
+          isEditable={false}
         />
-        {gallery.length ?? 0 > 0 ? (
+        {(gallery.length ?? 0 > 0) ? (
           <GalleryList gallery={gallery} />
         ) : (
           <EmptyFeedList description="아직 작성된 갤러리가 없어요." />
         )}
         {/* 티켓북 */}
-        <ArchiveTitle
-          title="티켓북"
-          onClick={() => {
-            if (!archiveId) return;
-            navigate(`/archive/${archiveId}/ticket-book`);
-          }}
-          isMore={(ticket.length ?? 0) > 0}
+        <TicketList
+          archiveId={archiveId}
+          limit={3}
+          isOwner={false}
+          emptyDescription="아직 작성된 티켓북이 없어요."
         />
-        {ticket.length ?? 0 > 0 ? (
-          <TicketList ticket={ticket} />
-        ) : (
-          <EmptyFeedList description="아직 작성된 티켓북이 없어요." />
-        )}
         {/* 덕질 리포스트 */}
         <ArchiveTitle
           title="덕질 리포스트"
@@ -110,17 +111,19 @@ const FeedDetail = () => {
             navigate(`/archive/${archiveId}/repost`);
           }}
           isMore={(repost.length ?? 0) > 0}
+          isEditable={false}
         />
-        {repost.length ?? 0 > 0 ? (
+        {(repost.length ?? 0 > 0) ? (
           <RepostList repost={repost} />
         ) : (
           <EmptyFeedList description="아직 작성된 리포스트가 없어요." />
         )}
         {/* 좋아요 */}
         <ButtonLike
-          liked={feed?.liked}
+          liked={feed?.isLiked}
           likeCount={feed?.likeCount ?? 0}
           onClick={() => {
+            likeArchiveMutation.mutate();
             console.log("좋아요 클릭");
           }}
         />

@@ -1,7 +1,7 @@
 import axios, { AxiosError } from "axios";
 
 // API Base URL
-const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const BASE_URL = import.meta.env.VITE_API_BASE;
 
 // Axios 인스턴스 생성
 export const axiosInstance = axios.create({
@@ -17,10 +17,10 @@ export const axiosInstance = axios.create({
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    // 401 에러 시 로그인 페이지로 리다이렉트
-    if (error.response?.status === 401) {
-      window.location.href = "/login";
-    }
+    // 401 에러 시 로그인 페이지로 리다이렉트 => 필요한 곳에서 개별 처리
+    // if (error.response?.status === 401) {
+    //   window.location.href = "/login";
+    // }
 
     // 403 에러 처리 (권한 없음)
     if (error.response?.status === 403) {

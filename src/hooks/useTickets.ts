@@ -11,7 +11,7 @@ export function useTickets(initial: Ticket[] = []) {
   const addTicket = useCallback((t: Partial<Ticket>) => {
     const nowIso = new Date().toISOString();
     const full: Ticket = {
-      id: t.id ?? `tmp-${Date.now()}`,
+      id: t.id ?? Date.now(),
       eventName: t.eventName ?? "제목 없음",
       imageUrl: t.imageUrl ?? null,
       isRepresentative: !!t.isRepresentative,
@@ -26,11 +26,11 @@ export function useTickets(initial: Ticket[] = []) {
     setTickets((prev) => [full, ...prev]);
   }, []);
 
-  const updateTicket = useCallback((id: string, patch: Partial<Ticket>) => {
+  const updateTicket = useCallback((id: number, patch: Partial<Ticket>) => {
     setTickets((p) => p.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   }, []);
 
-  const deleteTickets = useCallback((ids: string[]) => {
+  const deleteTickets = useCallback((ids: number[]) => {
     setTickets((p) => p.filter((x) => !ids.includes(x.id)));
   }, []);
 

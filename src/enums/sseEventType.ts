@@ -1,0 +1,6 @@
+export enum SseEventType {
+  FRIEND_REQUEST = "FRIEND_REQUEST",
+  FRIEND_ACCEPT = "FRIEND_ACCEPT",
+  // TODO: 백엔드에서 FRIEND_DELETE 이벤트 추가 시 주석 해제
+  // FRIEND_DELETE = "FRIEND_DELETE",
+}

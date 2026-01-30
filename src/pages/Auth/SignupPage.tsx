@@ -7,6 +7,11 @@ import SignupStep1 from "@/components/auth/signup/signupStep1";
 import SignupStep2 from "@/components/auth/signup/signupStep2";
 import SignupStep3 from "@/components/auth/signup/signupStep3";
 import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
+import {
+  registerUser,
+  sendVerificationCode,
+} from "@/apis/mutations/auth/signup";
 
 // ✅ Step 2 스키마 (이메일, 비밀번호, 닉네임)
 export const schema = z
@@ -43,14 +48,34 @@ export const schema = z
 
 export type FormFields = z.infer<typeof schema>;
 
-// const agreements: Agreement[] = [
-//   { id: "all", label: "전체 동의", required: false },
-//   { id: "terms", label: "[필수] 이용약관 동의", required: true },
-//   { id: "privacy", label: "[필수] 개인정보 수집 및 이용 동의", required: true },
-// ];
-
 const SignupPage = () => {
   const navigate = useNavigate();
+  // ✅ 회원가입 mutation 추가
+  const signupMutation = useMutation({
+    mutationFn: registerUser,
+    onSuccess: (data) => {
+      console.log("회원가입 성공:", data);
+      alert("회원가입이 완료되었습니다!");
+      navigate("/login", {
+        state: { email: signupData?.email || "" },
+      });
+    },
+    onError: (error) => {
+      console.error("회원가입 실패:", error);
+      alert("회원가입에 실패했습니다. 다시 시도해주세요.");
+    },
+  });
+  // ✅ 인증번호 발송 mutation 추가
+  const sendVerificationCodeMutation = useMutation({
+    mutationFn: sendVerificationCode,
+    onSuccess: (data) => {
+      console.log("인증번호 발송 성공:", data);
+    },
+    onError: (error) => {
+      console.error("인증번호 발송 실패:", error);
+    },
+  });
+
   // Step 단계 관리
   const [step, setStep] = useState(1);
   // Step 1: 약관 동의 상태
@@ -116,11 +141,14 @@ const SignupPage = () => {
   // ✅ 필수 약관 동의 여부 확인
   const isRequiredAgreed = checkedAgreements.terms && checkedAgreements.privacy;
 
-  // ✅ 회원가입 완료 API 호출
+  // ✅ 회원가입 완료 API 호출 => mutaion으로 실제 api 연결
   const handleCompleteSignup = () => {
     if (signupData) {
-      console.log(signupData, " 로 회원가입 완료");
-      navigate("/");
+      signupMutation.mutate({
+        email: signupData.email,
+        password: signupData.password,
+        nickname: signupData.nickname,
+      });
     }
   };
 
@@ -155,9 +183,17 @@ const SignupPage = () => {
           nickname,
         });
 
-        // ✅ 올바름 - 방금 계산한 email 변수 사용
-        console.log(email, " 로 이메일 발송 완료");
-        setStep(3);
+        // ✅ 인증번호 발송 API 호출 => mutaion으로 실제 api 연결
+        sendVerificationCodeMutation.mutate(
+          {
+            email,
+          },
+          {
+            onSuccess: () => setStep(3),
+            onError: () =>
+              alert("인증번호 발송에 실패했습니다. 다시 시도해주세요."),
+          }
+        );
       }
     }
   };

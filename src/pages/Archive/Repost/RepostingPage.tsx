@@ -9,7 +9,7 @@ import RepostCard from "@/components/common/Card/RepostCard";
 import Pagination from "@/components/common/Pagination";
 import { BtnIcon } from "@/components/common/Button/Btn";
 import CheckboxIcon from "@/assets/icon/CheckboxIcon";
-import { Link as LinkIcon, Pencil, SquareX } from "lucide-react";
+import { Link as LinkIcon, Pencil, X } from "lucide-react";
 import TrashIcon from "@/assets/icon/TrashIcon";
 
 type RepostItem = {
@@ -238,7 +238,7 @@ export default function RepostingPage() {
                 </BtnIcon>
                 <BtnIcon
                   onClick={() => toggleEditMode()}
-                  startIcon={<SquareX className="size-6 text-color-high" />}
+                  startIcon={<X className="w-6 h-6 text-color-high" />}
                 >
                   취소하기
                 </BtnIcon>

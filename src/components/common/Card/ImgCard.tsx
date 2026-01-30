@@ -2,17 +2,17 @@ import { useState } from "react";
 import { twMerge } from "tailwind-merge";
 import vectorIcon from "@/assets/icon/Vector.svg";
 import { X } from "lucide-react";
+import { MediaType } from "@/enums/mediaType";
 
 type CardType = "representative" | "normal";
 
 interface ImgCardProps {
   onClick: () => void;
   selected?: boolean;
-  onDelete?: () => void; // 대표이미지 삭제 시 호출
+  onDelete?: () => void;
   img?: string;
-  mediaType?: "image" | "video";
-  // children: React.ReactNode;
-  type?: CardType; //default: normal
+  mediaType?: MediaType;
+  type?: CardType;
   className?: string;
   readOnly?: boolean;
 }
@@ -22,7 +22,7 @@ const ImgCard = ({
   selected = false,
   onDelete,
   img,
-  mediaType = "image",
+  mediaType,
   type = "normal",
   readOnly = false,
   className,
@@ -40,9 +40,11 @@ const ImgCard = ({
 
   const typeCls = type === "representative" ? representative : normal;
 
+  const isVideo = mediaType === MediaType.VIDEO;
+
   // 이미지가 없거나 로드 실패했거나 아직 로딩 중일 때 벡터 아이콘 표시
   const showIcon =
-    !img || (!imageLoaded && mediaType === "image") || imageError;
+    !img || (!imageLoaded && mediaType === MediaType.IMAGE) || imageError;
 
   return (
     <div
@@ -76,7 +78,32 @@ const ImgCard = ({
           <X className="w-4 h-4 text-white" />
         </button>
       )}
-      {mediaType === "image" ? (
+      {isVideo ? (
+        <>
+          {img ? (
+            <video
+              src={img}
+              controls
+              playsInline
+              // autoPlay muted
+              className="w-full h-full object-cover absolute inset-0"
+              onLoadedData={() => {
+                // 로딩되면 아이콘 숨기려면 상태 변경 로직 추가 가능
+                setImageLoaded(true);
+                setImageError(false);
+              }}
+              onError={() => {
+                setImageError(true);
+                setImageLoaded(false);
+              }}
+            />
+          ) : (
+            <div className="flex items-center justify-center">
+              <img src={vectorIcon} alt="icon" className="w-[43px] h-[31px]" />
+            </div>
+          )}
+        </>
+      ) : (
         <>
           {img && (
             <img
@@ -103,32 +130,8 @@ const ImgCard = ({
             </div>
           )}
         </>
-      ) : (
+
         // video
-        <>
-          {img ? (
-            <video
-              src={img}
-              controls
-              playsInline
-              // autoPlay muted
-              className="w-full h-full object-cover absolute inset-0"
-              onLoadedData={() => {
-                // 로딩되면 아이콘 숨기려면 상태 변경 로직 추가 가능
-                setImageLoaded(true);
-                setImageError(false);
-              }}
-              onError={() => {
-                setImageError(true);
-                setImageLoaded(false);
-              }}
-            />
-          ) : (
-            <div className="flex items-center justify-center">
-              <img src={vectorIcon} alt="icon" className="w-[43px] h-[31px]" />
-            </div>
-          )}
-        </>
       )}
     </div>
   );

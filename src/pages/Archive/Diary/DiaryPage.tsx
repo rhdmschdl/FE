@@ -1,0 +1,196 @@
+import { useState } from "react";
+import EmptyList from "@/components/archive/Empty/EmptyList";
+import EmptyFeedList from "@/components/feed/EmptyFeedList";
+import DiaryCard from "@/components/common/Card/DiaryCard";
+import { BtnIcon } from "@/components/common/Button/Btn";
+import Pagination from "@/components/common/Pagination";
+import EditableTitle from "@/components/common/EditableTitle";
+import { useGetDiaryBook } from "@/apis/queries/diary/useGetDiary";
+import { useUpdateDiaryBook } from "@/apis/mutations/diary/usePatchDiary";
+import { useDeleteDiary } from "@/apis/mutations/diary/useDeleteDiary";
+import { useGetArchive } from "@/apis/queries/archive/useGetArchive";
+import { Pencil, Plus, X, Trash2 } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+
+const DiaryPage = () => {
+  const params = useParams();
+  const archiveId = Number(params.archiveId);
+  const navigate = useNavigate();
+
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  const [selectedDiaryIds, setSelectedDiaryIds] = useState<number[]>([]);
+
+  const [page, setPage] = useState(0);
+  const pageSize = 9;
+
+  // 아카이브 상세 조회 (소유자 여부 확인용)
+  const { data: archive } = useGetArchive({ archiveId });
+  const isOwner = archive?.isOwner ?? false;
+
+  const { data } = useGetDiaryBook({
+    archiveId,
+    page,
+    size: pageSize,
+  });
+
+  // 다이어리북 이름 수정
+  const { mutate: updateDiaryBookName } = useUpdateDiaryBook();
+
+  // 다이어리 삭제
+  const { mutate: deleteDiary } = useDeleteDiary();
+
+  const diaryList = data?.content ?? [];
+  const totalItems = data?.page?.totalElements ?? 0;
+  const diaryBookTitle = data?.title ?? "덕질 일기";
+
+  // 다이어리북 이름 저장
+  const handleSaveName = (nextName: string) => {
+    updateDiaryBookName({
+      archiveId,
+      title: nextName,
+    });
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage - 1);
+  };
+
+  const handleEditToggle = () => {
+    setIsEditMode((prev) => !prev);
+  };
+
+  const handleCancel = () => {
+    setIsEditMode(false);
+    setSelectedDiaryIds([]);
+  };
+
+  const handleDiarySelect = (diaryId: number) => {
+    setSelectedDiaryIds((prev) =>
+      prev.includes(diaryId)
+        ? prev.filter((id) => id !== diaryId)
+        : [...prev, diaryId]
+    );
+  };
+
+  const handleDelete = () => {
+    if (selectedDiaryIds.length === 0) return;
+
+    // 선택된 다이어리 삭제
+    selectedDiaryIds.forEach((diaryId) => {
+      deleteDiary({ diaryId });
+    });
+
+    // 삭제 후 편집 모드 종료
+    setIsEditMode(false);
+    setSelectedDiaryIds([]);
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center">
+      <div className="max-w-[1920px] mx-auto flex flex-col items-start mt-15 gap-15">
+        <div className="w-310 flex flex-col gap-15">
+          <EditableTitle
+            value={diaryBookTitle}
+            onSave={handleSaveName}
+            placeholder="다이어리북명을 입력하세요."
+            maxLength={50}
+            editable={isOwner}
+          />
+
+          {diaryList.length > 0 ? (
+            <div className="w-full flex flex-col gap-10">
+              {/* 버튼 영역 - 소유자만 표시 */}
+              {isOwner && (
+                <div className="w-full flex justify-end gap-4">
+                  {isEditMode ? (
+                    <>
+                      <BtnIcon
+                        startIcon={<Trash2 className="w-6 h-6 text-color-high" />}
+                        onClick={handleDelete}
+                        disabled={selectedDiaryIds.length === 0}
+                      >
+                        삭제하기
+                      </BtnIcon>
+                      <BtnIcon
+                        startIcon={<X className="w-6 h-6 text-color-high" />}
+                        onClick={handleCancel}
+                      >
+                        취소하기
+                      </BtnIcon>
+                    </>
+                  ) : (
+                    <>
+                      <BtnIcon
+                        startIcon={<Plus className="w-6 h-6 text-color-high" />}
+                        onClick={() => {
+                          navigate(`/archive/${archiveId}/diary/new`);
+                        }}
+                      >
+                        일기 추가
+                      </BtnIcon>
+                      <BtnIcon
+                        startIcon={<Pencil className="w-6 h-6 text-color-high" />}
+                        onClick={handleEditToggle}
+                      >
+                        편집 하기
+                      </BtnIcon>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* DiaryCard 목록 */}
+              <div className="w-full flex flex-col items-start gap-[60px]">
+                <div className="flex flex-wrap items-start justify-between gap-[80px]">
+                  {diaryList.map((diary) => (
+                    <DiaryCard
+                      key={diary.diaryId}
+                      archiveId={archiveId}
+                      diaryId={diary.diaryId}
+                      title={diary.title}
+                      image={diary.thumbnailUrl ?? undefined}
+                      date={diary.recordedAt}
+                      isEditMode={isEditMode}
+                      isSelected={selectedDiaryIds.includes(diary.diaryId)}
+                      onSelect={() => handleDiarySelect(diary.diaryId)}
+                      onClick={() =>
+                        navigate(`/archive/${archiveId}/diary/${diary.diaryId}`)
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* 페이지네이션 */}
+              {totalItems > pageSize && (
+                <div className="flex justify-center pt-5 pb-15">
+                  <Pagination
+                    totalItems={totalItems}
+                    pageSize={pageSize}
+                    visiblePages={5}
+                    currentPage={page + 1}
+                    onChange={handlePageChange}
+                  />
+                </div>
+              )}
+            </div>
+          ) : isOwner ? (
+            <EmptyList
+              title="일기 추가"
+              description="아직 작성된 일기가 없어요."
+              className="w-full h-135"
+              onClick={() => {
+                navigate(`/archive/${archiveId}/diary/new`);
+              }}
+            />
+          ) : (
+            <EmptyFeedList description="아직 작성된 일기가 없어요." />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DiaryPage;

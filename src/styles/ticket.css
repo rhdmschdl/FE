@@ -1,0 +1,37 @@
+/* 티켓 노치 스타일 */
+.ticket-notch-left {
+  background: radial-gradient(circle at 0 12%, transparent 10px, #fff 10px),
+    radial-gradient(circle at 0 88%, transparent 10px, #fff 10px);
+  background-color: #fff;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+.ticket-notch-right {
+  background: radial-gradient(circle at 100% 12%, transparent 10px, #fff 10px),
+    radial-gradient(circle at 100% 88%, transparent 10px, #fff 10px);
+  background-color: #fff;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+/* 선택된 티켓 노치 스타일 */
+.ticket-notch-left-selected {
+  background: radial-gradient(circle at 0 12%, transparent 10px, #a2aab2 10px),
+    radial-gradient(circle at 0 88%, transparent 10px, #a2aab2 10px);
+  background-color: #a2aab2;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+.ticket-notch-right-selected {
+  background: radial-gradient(
+      circle at 100% 12%,
+      transparent 10px,
+      #a2aab2 10px
+    ),
+    radial-gradient(circle at 100% 88%, transparent 10px, #a2aab2 10px);
+  background-color: #a2aab2;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}

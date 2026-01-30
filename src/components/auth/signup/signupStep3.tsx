@@ -1,4 +1,6 @@
+import { verifyEmailCode } from "@/apis/mutations/auth/signup";
 import { BtnBasic } from "@/components/common/Button/Btn";
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
 type SignupStep3Props = {
@@ -6,40 +8,31 @@ type SignupStep3Props = {
   onComplete: () => void; // 회원가입 완료 시 호출될 함수
 };
 
-const SignupStep3 = ({ onComplete }: SignupStep3Props) => {
-  const [code, setCode] = useState<string>("");
+const SignupStep3 = ({ email, onComplete }: SignupStep3Props) => {
+  const [code, setCode] = useState<string>(""); // 인증번호 값 저장
   const [isVerified, setIsVerified] = useState<boolean>(false); // 인증 성공 여부
   const [isVerifying, setIsVerifying] = useState<boolean>(false); // 인증 중 로딩 상태
 
-  // 인증번호 확인 API 호출
-  const handleVerifyCode = async () => {
-    try {
-      setIsVerifying(true);
+  const verifyEmailCodeMutation = useMutation({
+    mutationFn: verifyEmailCode,
+    onSuccess: (data) => {
+      console.log("인증번호 확인 성공:", data);
 
-      // TODO: 실제 API 호출
-      // const response = await verifyEmailCode(code);
-
-      // 임시로 성공 시뮬레이션 (실제로는 API 응답 확인)
-      console.log("인증번호 확인", code);
-
-      // API 응답이 성공이면 (예: response === "200" 또는 response.status === 200)
-      const isSuccess = true; // 실제로는 API 응답으로 판단
-
-      if (isSuccess) {
-        setIsVerified(true);
-        console.log("인증 성공!");
-
-        // 자동으로 회원가입 완료 처리 (선택사항)
-        // setTimeout(() => {
-        //   handleCompleteSignup();
-        // }, 1000);
-      }
-    } catch (error) {
-      console.error("인증 실패:", error);
-      alert("인증번호가 올바르지 않습니다.");
-    } finally {
+      setIsVerified(true);
+    },
+    onError: (error) => {
+      console.error("인증번호 확인 실패:", error);
       setIsVerifying(false);
-    }
+    },
+  });
+
+  // ✅ 간단하게 수정
+  const handleVerifyCode = () => {
+    verifyEmailCodeMutation.mutate({
+      email: email, // props로 받은 email 사용
+      code: code,
+      purpose: "SIGNUP",
+    });
   };
 
   // 재전송 API 호출

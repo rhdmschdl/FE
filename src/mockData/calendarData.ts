@@ -1,3 +1,5 @@
+import type { LabelData } from "@/types/calendar";
+
 export type ColorData = {
   color: string;
 };
@@ -20,23 +22,15 @@ export type SportInfo = {
   score2: number;
 };
 
-export type LabelData = {
-  title: string; //일정 이름
-  date: string; //날짜
-  time?: string; //시간
-  hasTime: boolean; //하루종일 버튼 체크 여부 false: 하루종일, true: 시간 선택
-  color: ColorData;
-  sportInfo?: SportInfo; //스포츠 정보
-  hashtags?: string[]; //태그
-  isSportType: boolean; //스포츠 타입 여부
-};
-
 const defaultLabelData: LabelData[] = [
   {
+    id: 1,
     title: "야구경기 관람",
     date: "2026-01-03",
+    time: "19:00",
     hasTime: false,
-    color: colors[0],
+    color: "#FFDFE7",
+    isSportType: true,
     sportInfo: {
       team1: "한화 이글스",
       team2: "두산 베어스",
@@ -44,14 +38,15 @@ const defaultLabelData: LabelData[] = [
       score2: 3,
     },
     hashtags: ["야구", "한화 이글스", "두산 베어스"],
-    isSportType: true,
   },
   {
+    id: 2,
     title: "야구경기 관람",
     date: "2026-01-04",
     time: "19:00",
     hasTime: true,
-    color: colors[2],
+    color: "#FFDEBF",
+    isSportType: true,
     sportInfo: {
       team1: "한화 이글스",
       team2: "LG 트윈스",
@@ -59,41 +54,75 @@ const defaultLabelData: LabelData[] = [
       score2: 3,
     },
     hashtags: ["야구", "한화 이글스", "LG 트윈스"],
-    isSportType: true,
   },
 
   {
-    date: "2026-01-04",
+    id: 3,
+    date: "2026-01-05",
     title: "콘서트 관람",
+    time: "19:00",
     hasTime: false,
-    color: colors[1],
+    color: "#FFABAB",
+    hashtags: ["콘서트", "라이브", "블랙핑크"],
+    isSportType: false,
+  },
+  { id: 4,
+    date: "2026-01-06",
+    title: "콘서트 관람",
+    time: "19:00",
+    hasTime: false,
+    color: "#FFABAB",
     hashtags: ["콘서트", "라이브", "블랙핑크"],
     isSportType: false,
   },
   {
+    id: 5,
+    date: "2026-01-04",
+    title: "콘서트 관람",
+    time: "19:00",
+    hasTime: false,
+    color: "#FFABAB",
+    hashtags: ["콘서트", "라이브", "블랙핑크"],
+    isSportType: false,
+  },
+  {
+    id: 6,
     date: "2026-01-05",
     title: "콘서트 관람",
     time: "18:00",
     hasTime: true,
-    color: colors[5],
+    color: "#82BEF5",
     hashtags: ["콘서트", "라이브", "블랙핑크", "아이돌"],
     isSportType: false,
   },
   {
+    id: 7,
     date: "2026-01-06",
     title: "데이트",
     time: "21:00",
     hasTime: true,
-    color: colors[3],
+    color: "#FFDEBF",
     hashtags: ["데이트", "커플"],
     isSportType: true,
+    sportInfo: {
+      team1: "한화 이글스",
+      team2: "두산 베어스",
+      score1: 5,
+      score2: 3,
+    },
   },
 ];
 
 const defaultStickerData: Record<string, string> = {
-  "2025-12-01": "sticker",
-  "2025-12-02": "sticker",
-  "2025-12-03": "sticker",
+  "2026-01-01": "sticker",
+  "2026-01-02": "sticker",
+  "2026-01-03": "sticker",
+  "2026-01-04": "sticker",
+  "2026-01-05": "sticker",
+  "2026-01-06": "sticker",
+  "2026-01-07": "sticker",
+  "2026-01-08": "sticker",
+  "2026-01-09": "sticker",
 };
 
 export {

@@ -1,57 +1,92 @@
-import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BtnIcon } from "@/components/common/Button/Btn";
-import type { User } from "@/types/user";
 import profileImage from "../../assets/images/profile.png";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, CheckIcon, XIcon } from "lucide-react";
 import footerImage from "../../assets/images/footer.png";
-
-// 더미 (테스트용)
-const mockUser: User = {
-  id: "u-123",
-  nickname: "방문 닉네임",
-  avatarUrl: undefined,
-  isFriend: false,
-};
+import { usePostSendFriend } from "@/apis/mutations/friend/usePostFriend";
+import { useDeleteSendFriend } from "@/apis/mutations/friend/useDeleteFriend";
+import { useGetUser } from "@/apis/queries/user/useGetUser";
+import { useGetStatusFriend } from "@/apis/queries/friend/useGetFriend";
+import { FriendStatus } from "@/enums/friendStatus";
 
 export default function VisitProfilePage() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
 
-  const [user, setUser] = useState<User | null>(null);
-  const [requesting, setRequesting] = useState(false);
-  const [requestSent, setRequestSent] = useState(false);
+  const userIdNum = userId ? Number(userId) : 0;
 
-  // useUser(userId) 같은 훅으로 교체
-  useEffect(() => {
-    // TODO: 실제 API 호출 (예: fetch user by userId)
-    // setUser(await api.fetchUser(userId));
-    setUser(mockUser); // 임시 더미
-  }, [userId]);
+  const { data: user, isLoading: isUserLoading, isError: isUserError } = useGetUser({
+    userId: userIdNum,
+  });
 
-  const handleSendFriendRequest = async () => {
-    if (!user) return;
-    setRequesting(true);
-    try {
-      // TODO: 실제 API 호출로 친구 요청 보내기
-      // await api.sendFriendRequest(user.id);
-      await new Promise((r) => setTimeout(r, 700)); // mock delay
-      setRequestSent(true);
-    } catch (err) {
-      console.error(err);
-      alert("친구 요청에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-    } finally {
-      setRequesting(false);
-    }
+  const { data: friendStatus, isLoading: isStatusLoading } = useGetStatusFriend({
+    friendId: userIdNum,
+  });
+
+  const { mutate: sendFriendRequest, isPending: isSending } = usePostSendFriend();
+  const { mutate: cancelFriendRequest, isPending: isCanceling } = useDeleteSendFriend();
+
+  const handleSendFriendRequest = () => {
+    if (!userIdNum) return;
+    sendFriendRequest({ friendId: userIdNum });
   };
 
-  if (!user) {
+  const handleCancelFriendRequest = () => {
+    if (!userIdNum) return;
+    cancelFriendRequest({ friendId: userIdNum });
+  };
+
+  const isLoading = isUserLoading || isStatusLoading;
+
+  if (isLoading) {
     return (
       <div className="px-8 py-12">
         <div className="w-310 mx-auto">로딩 중...</div>
       </div>
     );
   }
+
+  if (isUserError || !user) {
+    return (
+      <div className="px-8 py-12">
+        <div className="w-310 mx-auto">사용자를 찾을 수 없습니다.</div>
+      </div>
+    );
+  }
+
+  const status = friendStatus?.status;
+  const isAlreadyFriend = status === FriendStatus.ACCEPTED;
+  const isPendingRequest = status === FriendStatus.PENDING;
+
+  const getButtonConfig = () => {
+    if (isAlreadyFriend) {
+      return {
+        variant: "gray" as const,
+        disabled: true,
+        label: "친구",
+        icon: <CheckIcon className="w-6 h-6 text-color-high" />,
+        onClick: () => {},
+      };
+    }
+    if (isPendingRequest) {
+      return {
+        variant: "gray" as const,
+        disabled: isCanceling,
+        label: "요청 취소",
+        icon: <XIcon className="w-6 h-6 text-color-high" />,
+        onClick: handleCancelFriendRequest,
+      };
+    }
+    return {
+      variant: "blue" as const,
+      disabled: isSending,
+      label: "친구 추가",
+      icon: <PlusIcon className="w-6 h-6 text-color-high" />,
+      onClick: handleSendFriendRequest,
+    };
+  };
+
+  const buttonConfig = getButtonConfig();
 
   return (
     <div
@@ -70,32 +105,37 @@ export default function VisitProfilePage() {
 
         {/* 프로필 영역 */}
         <div className="flex items-center gap-5 mb-15">
+          {/* TODO: 백엔드에서 profileImageUrl 추가 시 적용 */}
+          {/* <img src={user?.profileImageUrl || profileImage} className="size-30" /> */}
           <img src={profileImage} className="size-30" />
           <div className="flex flex-col gap-5">
             <div className="typo-h1 text-high">{user.nickname}</div>
             <div className="flex flex-col gap-3">
-              {/* 친구 추가 버튼: 친구 요청 보낸 상태이면 Disabled/완료 텍스트 노출 */}
+              {/* 친구 추가/취소 버튼 */}
               <BtnIcon
-                variant={requestSent ? "gray" : "blue"}
-                onClick={handleSendFriendRequest}
-                disabled={requesting || requestSent}
+                variant={buttonConfig.variant}
+                onClick={buttonConfig.onClick}
+                disabled={buttonConfig.disabled}
                 className={
-                  requestSent ? "opacity-80" : "w-30 border-2 border-border-low"
+                  buttonConfig.variant === "gray" && !isPendingRequest
+                    ? "opacity-80"
+                    : "w-30 border-2 border-border-low"
                 }
-                startIcon={<PlusIcon className="w-6 h-6 text-color-high" />}
+                startIcon={buttonConfig.icon}
               >
-                {requestSent ? "요청 전송됨" : "친구 추가"}
+                {buttonConfig.label}
               </BtnIcon>
             </div>
           </div>
         </div>
+
         {/* 아카이브 방문 버튼 */}
         <button
           type="button"
-          onClick={() => navigate(`/profile/${user.id}/archives`)}
-          className={`w-full flex items-center justify-between px-30 py-25 bg-white rounded-xl hover:bg-surface-container-20 focus:outline-none`}
+          onClick={() => navigate(`/profile/${userId}/archives`)}
+          className="w-full flex items-center justify-between px-30 py-25 bg-white rounded-xl hover:bg-surface-container-20 focus:outline-none"
         >
-          <div className={"typo-h2-semibold text-color-mid"}>
+          <div className="typo-h2-semibold text-color-mid">
             {user.nickname} 님의 아카이브 방문하기
           </div>
 

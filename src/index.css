@@ -1,10 +1,12 @@
 @import "tailwindcss";
+@import "./styles/ticket.css";
+@import "./styles/theme.css";
 
 @font-face {
   font-family: "HakgyoansimBadasseugi-B";
   src: url("/src/assets/fonts/Hakgyoansim Badasseugi OTF B.otf")
     format("opentype");
-  font-weight: 700;
+  font-weight: 600;
   font-style: normal;
   font-display: swap;
 }
@@ -89,16 +91,6 @@
 }
 
 @layer utilities {
-  .font-hakgyoansim-b {
-    font-family: "HakgyoansimBadasseugi-B", Pretendard, sans-serif;
-    font-weight: 600;
-  }
-
-  .font-hakgyoansim-l {
-    font-family: "HakgyoansimBadasseugi-L", Pretendard, sans-serif;
-    font-weight: 300;
-  }
-
   /* Heading */
   .typo-h1 {
     @apply font-sans text-h1 leading-h1 font-bold;
@@ -137,6 +129,17 @@
   /* Caption */
   .typo-caption {
     @apply font-sans text-caption leading-caption font-normal;
+  }
+
+  /* Font-hakgyoansim */
+  .font-hakgyoansim-b {
+    font-family: "HakgyoansimBadasseugi-B", Pretendard, sans-serif;
+    font-weight: 600;
+  }
+
+  .font-hakgyoansim-l {
+    font-family: "HakgyoansimBadasseugi-L", Pretendard, sans-serif;
+    font-weight: 300;
   }
 
   /* Color-bg */

@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { twMerge } from "tailwind-merge";
 import List from "./List";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import type { Sort } from "@/enums/sort";
 
 export type SelectBoxOption = {
   label: string;
@@ -11,8 +12,8 @@ export type SelectBoxOption = {
 
 type SelectBoxProps = {
   options: SelectBoxOption[];
-  value?: string;
-  onChange: (value: string) => void;
+  value?: Sort;
+  onChange: (value: Sort) => void;
   className?: string;
   placeholder?: string;
   Icon?: React.ReactNode;
@@ -89,7 +90,7 @@ export default function SelectBox({
             <List
               key={opt.value}
               onClick={() => {
-                onChange(opt.value);
+                onChange(opt.value as Sort);
                 setIsOpen(false);
               }}
               selected={opt.value === value}

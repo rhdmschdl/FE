@@ -1,11 +1,18 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  getPosts,
+  // mapCategoryToServer,
+} from "@/apis/queries/community/getPost";
+import type { PostItem } from "@/apis/queries/community/getPost";
+import { mapCategoryToLabel } from "@/utils/categoryMapper";
 import { Pencil } from "lucide-react";
 import CommunityTab from "@/components/community/CommunityTab";
 import CommunityCard from "@/components/community/CommunityCard";
 import Pagination from "@/components/common/Pagination";
 import { BtnIcon } from "@/components/common/Button/Btn";
 import SelectBox from "@/components/common/Button/SelectBox";
+import type { Sort } from "@/enums/sort";
 
 type ListOption = { label: string; value: string };
 
@@ -17,80 +24,79 @@ const LIST_OPTIONS: ListOption[] = [
 
 const Community = () => {
   const navigate = useNavigate();
-  const [category, setCategory] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("all");
+  const [category, setCategory] = useState<string | undefined>(undefined);
+  const [sortBy, setSortBy] = useState<"newest" | "popular" | "like">("newest");
   const [page, setPage] = useState<number>(1);
+  const [size] = useState<number>(9);
 
-  // 테스트용 데이터 10개
-  const posts = useMemo(
-    () =>
-      Array.from({ length: 10 }).map((_, i) => ({
-        id: i + 1,
-        title: `테스트 제목 ${i + 1}`,
-        categoryLabel: i % 2 === 0 ? "아이돌" : "기타",
-        categoryValue: i % 2 === 0 ? "idol" : "etc",
-        content: "테스트 본문",
-        img: undefined,
-      })),
-    []
-  );
+  const [posts, setPosts] = useState<PostItem[]>([]);
+  const [totalItems, setTotalItems] = useState<number>(0);
+  const [, setTotalPages] = useState<number>(1);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<any>(null);
 
-  // 필터 적용 (category 비교를 소문자로 통일)
-  const filteredPosts = useMemo(() => {
-    return posts.filter((p) => {
-      if (category === "all") return true;
-      return (
-        String(p.categoryValue).toLowerCase() === String(category).toLowerCase()
-      );
-    });
-  }, [posts, category]);
+  const tabValueForUi = category ?? "ALL";
+  const handleTabChange = (v: string) => {
+    setCategory(v === "ALL" ? undefined : v);
+  };
 
-  const totalItems = filteredPosts.length;
-  const pageSize = 9;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await getPosts({ page, size, category, sortBy });
+      setPosts(res.content ?? []);
+      setTotalPages(res.page?.totalPages ?? 1);
+      setTotalItems(res.page?.totalElements ?? res.content?.length ?? 0);
+    } catch (err) {
+      console.error("getPosts error", err);
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // category 또는 sortBy 변경 시 페이지 1로 리셋
   useEffect(() => {
+    // category 또는 sortBy 변경 시 페이지는 1로 맞추고 로드
     setPage(1);
   }, [category, sortBy]);
 
-  // totalPages 변화로 현재 page가 범위를 벗어나면 보정
   useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
-    }
-  }, [totalPages, page]);
+    load();
+  }, [page, category, sortBy]);
 
-  // current page items: 반드시 선언되어 있어야 함
-  const start = (page - 1) * pageSize;
-  const currentItems = useMemo(() => {
-    return filteredPosts.slice(start, start + pageSize);
-  }, [filteredPosts, start, pageSize]);
-
-  // robust page change handler (Pagination이 0-based/1-based 중 어느걸 보내도 안전하게 처리)
   const handlePageChange = (p: number) => {
-    if (typeof p !== "number" || Number.isNaN(p)) return;
-    if (p === 0) {
-      setPage(1);
-      return;
-    }
-    if (p >= 1 && p <= totalPages) {
-      setPage(p);
-      return;
-    }
-    const maybeOneBased = p + 1;
-    if (maybeOneBased >= 1 && maybeOneBased <= totalPages) {
-      setPage(maybeOneBased);
-      return;
-    }
-    const clamped = Math.max(1, Math.min(totalPages, Math.floor(p)));
-    setPage(clamped);
+    if (p <= 0) setPage(1);
+    else setPage(p);
   };
+
+  const handleShare = useCallback(async (postId: number | string) => {
+    const url = `${window.location.origin}/community/${postId}`;
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = url;
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      window.alert("URL을 복사했습니다.");
+    } catch (err) {
+      console.error("복사 실패:", err);
+      window.alert("URL 복사에 실패했습니다.");
+    }
+  }, []);
 
   return (
     <div>
       <div className="py-15 flex justify-center items-center">
-        <CommunityTab value={category} onChange={setCategory} />
+        <CommunityTab value={tabValueForUi} onChange={handleTabChange} />
       </div>
       <div className="flex justify-center">
         <div className="max-w-310">
@@ -105,14 +111,21 @@ const Community = () => {
             </BtnIcon>
             <SelectBox
               options={LIST_OPTIONS}
-              value={sortBy}
-              onChange={setSortBy}
+              value={sortBy as Sort}
+              onChange={(v) => setSortBy(v as any)}
             />
           </div>
           <div className="mt-5 mb-15">
             <div className="w-310">
-              {totalItems === 0 ? (
-                // 빈 상태: 카드 영역과 동일한 가로 중앙에 텍스트 배치
+              {loading ? (
+                <div className="min-h-[480px] flex items-center justify-center typo-h2 text-color-low">
+                  로딩 중...
+                </div>
+              ) : error ? (
+                <div className="min-h-[480px] flex items-center justify-center typo-h2 text-color-low">
+                  게시물을 불러오지 못했습니다.
+                </div>
+              ) : totalItems === 0 ? (
                 <div
                   role="status"
                   aria-live="polite"
@@ -131,16 +144,18 @@ const Community = () => {
                     rowGap: "32px",
                   }}
                 >
-                  {currentItems.map((post) => (
+                  {posts.map((post) => (
                     <CommunityCard
-                      key={post.id}
+                      key={post.postId}
                       title={post.title}
-                      categoryLabel={post.categoryLabel}
-                      categoryValue={post.categoryValue}
-                      content={post.content}
-                      img={post.img}
-                      onClick={() => navigate(`/community/${post.id}`)}
-                      onClickShare={() => console.log(`${post.id} 공유`)}
+                      categoryLabel={
+                        mapCategoryToLabel(post.category) ?? post.category
+                      }
+                      categoryValue={post.category}
+                      content={post.summary ?? ""}
+                      img={post.thumbnailUrl ?? undefined}
+                      onClick={() => navigate(`/community/${post.postId}`)}
+                      onClickShare={() => handleShare(post.postId)}
                     />
                   ))}
                 </div>
@@ -153,7 +168,7 @@ const Community = () => {
         <div className="flex justify-center mb-12">
           <Pagination
             totalItems={totalItems}
-            pageSize={pageSize}
+            pageSize={size}
             visiblePages={5}
             currentPage={page}
             onChange={handlePageChange}

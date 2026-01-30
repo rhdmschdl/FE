@@ -5,8 +5,6 @@ interface FeedCardProps {
   id?: number;
   title?: string;
   image?: string;
-  viewCount?: number;
-  likeCount?: number;
   onClick: () => void;
 }
 

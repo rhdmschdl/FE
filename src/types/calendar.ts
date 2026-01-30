@@ -1,3 +1,5 @@
+import type { StickerType } from "@/enums/sticker";
+
 export type EventProps = {
   onClose: () => void;
   startDate: Date | null;
@@ -10,9 +12,8 @@ export type DateData = {
 };
 
 export type ColorData = {
-  name: string;
   color: string;
-} | null;
+};
 
 export type SportInfo = {
   team1: string;
@@ -22,12 +23,60 @@ export type SportInfo = {
 };
 
 export type LabelData = {
-  title: string; //일정 이름
-  date: string; //날짜
-  time?: string; //시간
+  id: number;
+  title: string;
+  date: string;
+  time?: string;
   hasTime: boolean; //하루종일 버튼 체크 여부 false: 하루종일, true: 시간 선택
-  color: ColorData;
+  color: string;
+  isSportType?: boolean; //생성할 때 스포츠 타입 여부 true: 스포츠, false: 일반
   sportInfo?: SportInfo; //스포츠 정보
   hashtags?: string[]; //태그
-  isSportType: boolean; //스포츠 타입 여부
 };
+
+// 이벤트 목록, 조회 응답
+export type EventResponse = {
+  id: number;
+  title: string;
+  date: string;
+  time?: string;
+  hasTime: boolean; //하루종일 버튼 체크 여부 false: 하루종일, true: 시간 선택
+  color: string;
+  isSportType?: boolean; //생성할 때 스포츠 타입 여부 true: 스포츠, false: 일반
+  sportInfo?: SportInfo; //스포츠 정보
+  hashtags?: string[]; //태그
+}
+
+// 이벤트 생성 요청
+export type CreateEventRequest = {
+  title: string;
+  date: string;
+  time?: string;
+  hasTime: boolean;
+  color: string;
+  sportInfo?: SportInfo;
+  hashtags?: string[];
+  isSportType?: boolean;
+}
+
+export type UpdateEventRequest = {
+  title?: string;
+  date?: string;
+  time?: string;
+  hasTime?: boolean;
+  color?: string;
+  sportInfo?: SportInfo;
+  hashtags?: string[];
+  isSportType?: boolean;
+}
+
+export type StickerResponse= {
+  id: number;
+  date: string;
+  stickerType: StickerType;
+}
+
+export type CreateStickerRequest = {
+  date: string;
+  stickerType: StickerType;
+}

@@ -3,6 +3,15 @@ import UserIcon from "@/assets/icon/S.svg";
 import { Ellipsis } from "lucide-react";
 import SettngModal from "./SettngModal";
 import { useEffect, useRef, useState } from "react";
+import EditableTitle from "../common/EditableTitle";
+// ArchiveHeader.tsx의 import 부분 수정
+import FansBadge from "@/assets/icon/badge/Fans.tsx";
+import NewbieBadge from "@/assets/icon/badge/Newbie.tsx";
+import StanBadge from "@/assets/icon/badge/Stan.tsx";
+import SupporterBadge from "@/assets/icon/badge/Supporter.tsx";
+import MasterBadge from "@/assets/icon/badge/Master.tsx";
+import type { Visibility } from "@/types/archive";
+
 
 interface ArchiveHeaderProps {
   title?: string;
@@ -10,6 +19,11 @@ interface ArchiveHeaderProps {
   badge?: string;
   createdAt?: string;
   isMenu?: boolean;
+  visibility?: Visibility;
+  isFeed?: boolean;
+  onTitleSave?: (title: string) => void;
+  onVisibilitySave?: (visibility: Visibility) => void;
+  onDeleteArchive?: () => void;
 }
 
 const ArchiveHeader = ({
@@ -18,6 +32,11 @@ const ArchiveHeader = ({
   badge,
   createdAt,
   isMenu = false,
+  visibility,
+  isFeed = false,
+  onTitleSave,
+  onVisibilitySave,
+  onDeleteArchive,
 }: ArchiveHeaderProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -49,11 +68,28 @@ const ArchiveHeader = ({
     setIsMenuOpen((prev) => !prev);
     console.log("메뉴 버튼 클릭");
   };
+  const handleCloseModal = () => {
+    setIsMenuOpen(false);
+  };
+
 
   return (
     <div className="w-full flex flex-col items-start  gap-[20px]">
       <div className="w-full flex items-center justify-between">
-        <p className="typo-h1 text-color-highest">{title}</p>
+        {/* <p className="typo-h1 text-color-highest">{title || "아카이브명 (사용자 지정)"}</p> */}
+        {isFeed ? (
+          <p className="typo-h1 text-color-highest">{title || "아카이브명 (사용자 지정)"}</p>
+        ) : (
+          <EditableTitle
+            value={title ?? "아카이브명 (사용자 지정)"}
+            onSave={(next) => {
+              console.log("title", next);
+              onTitleSave?.(next); // 부모 컴포넌트에서 전달받은 함수 호출
+            }}
+            placeholder="아카이브명"
+            maxLength={50}
+          />
+        )}
         {isMenu && (
           <div className="relative">
             <button ref={buttonRef} onClick={handleMenuClick}>
@@ -67,7 +103,12 @@ const ArchiveHeader = ({
                   e.stopPropagation(); // 모달 영역 클릭 시 메뉴 버튼 클릭 방지
                 }}
               >
-                <SettngModal />
+                <SettngModal
+                  onVisibilitySave={onVisibilitySave}
+                  initialVisibility={visibility}
+                  onClose={handleCloseModal}
+                  onDeleteArchive={onDeleteArchive}
+                />
               </div>
             )}
           </div>
@@ -88,9 +129,14 @@ const ArchiveHeader = ({
         </button>
         {/* 배지 */}
         <div className="flex gap-[20px] justify-center">
-          <div className="flex justify-center items-center px-[20px] py-[10px] rounded-[10px] bg-surface-container-40 text-color-high">
+          {/* <div className="flex justify-center items-center px-[20px] py-[10px] rounded-[10px] bg-surface-container-40 text-color-high">
             {badge}
-          </div>
+          </div> */}
+          {badge === "NEWBIE" && <NewbieBadge />} {/* 신입 */}
+          {badge === "FANS" && <FansBadge />} {/* 팬 */}
+          {badge === "SUPPORTER" && <SupporterBadge />} {/* 후원자 */}
+          {badge === "STAN" && <StanBadge />} {/* 스탠 */}
+          {badge === "MASTER" && <MasterBadge />} {/* 마스터 */}
           {/* 디데이 부분 */}
           <div
             className="h-[51px] flex justify-center items-center px-[10px] py-[4px] rounded-[4px]

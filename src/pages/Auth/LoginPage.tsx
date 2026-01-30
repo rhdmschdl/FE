@@ -8,6 +8,10 @@ import googleIcon from "@/assets/icon/Google.svg";
 import kakaoIcon from "@/assets/icon/kakao.svg";
 import naverIcon from "@/assets/icon/naver.svg";
 import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
+import { login } from "@/apis/mutations/auth/login";
+import { useAuthStore } from "@/store/useAuthStore";
+import { Eye, EyeOff } from "lucide-react";
 
 const schema = z.object({
   email: z.string().email({ message: "이메일 형식이 올바르지 않습니다." }),
@@ -43,34 +47,47 @@ const LoginPage = () => {
   const [checked, setChecked] = useState<boolean>(false);
   //로그인 에러 상태
   const [loginError, setLoginError] = useState<string>("");
+  // 비밀번호 보여주기 상태
+  const [isPasswordVisible, setIsPasswordVisible] = useState<boolean>(false);
+
+  const togglePasswordVisibility = () => {
+    setIsPasswordVisible((prev) => !prev);
+  };
 
   // 입력여부 확인을 위한 watch & isFormValid
   const email = watch("email");
   const password = watch("password");
   const isFormValid = email.length > 0 && password.length > 0;
 
-  const handleLogin = async () => {
-    try {
-      console.log("로그인 시도");
+  // 로그인 상태 관리 => Zustand Store 사용
+  const loginUser = useAuthStore((state) => state.login);
 
-      // const response = await apiClient.post('/auth/login', { email, password });
-
-      // 테스트용
-      const isSuccess = true;
-
-      if (!isSuccess) {
-        throw new Error("로그인 실패");
-      }
-
-      // 성공 시 처리
-      console.log("로그인 성공", { email, password, checked });
-      // navigate('/') 등
-    } catch (error) {
-      // ✅ 로그인 실패 시 에러 메시지 설정
+  const loginMutation = useMutation({
+    mutationFn: login,
+    onSuccess: (data) => {
+      console.log("로그인 성공:", data);
+      loginUser({
+        id: data.user.id,
+        email: data.user.email,
+        nickname: data.user.nickname,
+        role: data.user.role,
+      });
+      navigate("/");
+    },
+    onError: (error) => {
+      console.error("로그인 실패:", error);
       setLoginError(
         "아이디(이메일) 또는 비밀번호가 일치하지 않습니다. 올바른 정보를 입력해주세요."
       );
-    }
+    },
+  });
+
+  const handleLogin = async () => {
+    loginMutation.mutate({
+      email,
+      password,
+      rememberMe: checked,
+    });
   };
 
   // ✅ 입력 변경 시 에러 초기화
@@ -83,13 +100,19 @@ const LoginPage = () => {
   const handleSocialLogin = (provider: string) => {
     switch (provider) {
       case "google":
-        console.log("google 로그인 시도");
+        window.location.href = `${
+          import.meta.env.VITE_API_BASE
+        }/oauth2/authorization/google?prompt=login`;
         break;
       case "kakao":
-        console.log("kakao 로그인 시도");
+        window.location.href = `${
+          import.meta.env.VITE_API_BASE
+        }/oauth2/authorization/kakao?prompt=login`;
         break;
       case "naver":
-        console.log("naver 로그인 시도");
+        window.location.href = `${
+          import.meta.env.VITE_API_BASE
+        }/oauth2/authorization/naver?prompt=login`;
     }
   };
 
@@ -118,19 +141,34 @@ const LoginPage = () => {
                 ${loginError ? "border-red-500" : "border-border-mid"}
                 focus:border-brand-blue-400`}
             />
-            <input
-              {...register("password")}
-              type="password"
-              placeholder="비밀번호를 입력해주세요"
-              onChange={(e) => {
-                register("password").onChange(e);
-                handleInputChange();
-              }}
-              className={`w-full h-[65px] p-5 rounded-xl border-2 border-solid 
-                typo-h2 text-color-highest placeholder:text-color-low outline-none
-                ${loginError ? "border-red-500" : "border-border-mid"}
-                focus:border-brand-blue-400`}
-            />
+            <div
+              className={`h-[65px] gap-2.5 flex p-5 justify-between items-center rounded-xl border-2
+    ${loginError ? "border-red-500" : "border-border-mid"}
+    focus-within:border-brand-blue-400`}
+            >
+              <input
+                {...register("password")}
+                type={isPasswordVisible ? "text" : "password"}
+                className="flex-1 typo-h2 text-color-highest placeholder:text-color-low outline-none"
+                placeholder="비밀번호"
+                autoComplete="new-password"
+                onChange={(e) => {
+                  register("password").onChange(e);
+                  handleInputChange(); // ✅ 추가: 입력 시 에러 초기화
+                }}
+              />
+              {isPasswordVisible ? (
+                <Eye
+                  className="w-6 h-6 text-color-mid cursor-pointer"
+                  onClick={togglePasswordVisibility}
+                />
+              ) : (
+                <EyeOff
+                  className="w-6 h-6 text-color-mid cursor-pointer"
+                  onClick={togglePasswordVisibility}
+                />
+              )}
+            </div>
 
             {loginError && (
               <p className="typo-h3 text-color-accent">{loginError}</p>

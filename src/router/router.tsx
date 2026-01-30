@@ -1,4 +1,4 @@
-import { createBrowserRouter, type RouteObject } from "react-router-dom";
+import { createBrowserRouter } from "react-router-dom";
 import Home from "@/pages/Home/Home";
 import NotFound from "@/pages/NotFound.tsx";
 import HomeLayout from "@/layouts/HomeLayout.tsx";
@@ -24,57 +24,77 @@ import VisitProfilePage from "@/pages/MyPage/VisitProfilePage";
 import VisitArchivePage from "@/pages/MyPage/VisitArchivePage";
 import MyArchivePage from "@/pages/MyPage/MyArchivePage";
 import PasswordFind from "@/pages/Auth/PasswordFind";
+import AuthLayout from "@/layouts/AuthLayout";
+import SocialCallback from "@/pages/Auth/socialCallback";
+import DiaryWritePage from "@/pages/Archive/Diary/DiaryWritePage";
+import DiaryDetailPage from "@/pages/Archive/Diary/DiaryDetailPage";
+import DiaryPage from "@/pages/Archive/Diary/DiaryPage";
 
-// 로그인 하지 않은 사용자만 접근 가능한 라우트 (메인 홈, 커뮤니티 열람, 피드 열람)
-const publicRoutes: RouteObject[] = [
+const router = createBrowserRouter([
+  // 🔓 Public Routes (누구나 접근 가능)
+  // 로그인 하지 않은 사용자만 접근 가능한 라우트 (메인 홈, 커뮤니티 열람, 피드 열람)
   {
     path: "/",
-    element: <HomeLayout />, // layout
+    element: <HomeLayout />,
     children: [
       { index: true, element: <Home /> },
-      { path: "login", element: <LoginPage /> },
-      { path: "password-find", element: <PasswordFind /> },
-      { path: "signup", element: <SignupPage /> },
-      { path: "archive", element: <Archive /> },
-      { path: "archive/:id", element: <ArchiveDetail /> },
-      { path: "archive/:id/ticket-book", element: <TicketBookPage /> },
-      { path: "archive/:id/gallery", element: <Gallery /> },
-      { path: "archive/:id/repost", element: <RepostingPage /> },
       { path: "feed", element: <Feed /> },
       { path: "feed/:id", element: <FeedDetail /> },
       { path: "community", element: <Community /> },
-      { path: "/community/:postId", element: <CommunityDetail /> },
-      { path: "/profile/:userId", element: <VisitProfilePage /> },
-      { path: "/profile/:userId/archives", element: <VisitArchivePage /> },
+      { path: "community/:postId", element: <CommunityDetail /> },
+      { path: "archive/:archiveId/diary", element: <DiaryPage /> }, // 아카이브 내 다이어리 목록 보기
+      { path: "archive/:archiveId/ticket-book", element: <TicketBookPage /> },
+      { path: "archive/:archiveId/gallery", element: <Gallery /> },
+      { path: "archive/:archiveId/repost", element: <RepostingPage /> },
       { path: "*", element: <NotFound /> },
     ],
   },
-];
 
-// 로그인 한 사용자만 접근 가능한 라우트 (메인 홈, 커뮤니티 열람, 피드 열람, 아카이브 열람, 마이페이지)
-const privateRoutes: RouteObject[] = [
+  // 🚪 Auth Routes (로그인 안 된 사용자만)
+  {
+    element: <AuthLayout />,
+    children: [
+      { path: "login", element: <LoginPage /> },
+      { path: "signup", element: <SignupPage /> },
+      { path: "password-find", element: <PasswordFind /> },
+      { path: "/oauth/callback", element: <SocialCallback /> },
+    ],
+  },
+
+  // 🔒 Protected Routes (로그인 필요)
+  // 로그인 한 사용자만 접근 가능한 라우트 (메인 홈, 커뮤니티 열람, 피드 열람, 아카이브 열람, 마이페이지)
   {
     path: "/",
     element: <ProtectedLayout />,
     children: [
-      { index: true, element: <Home /> },
       { path: "archive", element: <Archive /> },
-      { path: "archive/:id", element: <ArchiveDetail /> },
-      { path: "ticket/create", element: <CreateTicketPage /> },
-      { path: "ticket/edit/:id", element: <EditTicketPage /> },
-      { path: "feed", element: <Feed /> },
-      { path: "feed/:id", element: <FeedDetail /> },
-      { path: "community", element: <Community /> },
+      { path: "archive/:archiveId", element: <ArchiveDetail /> },
+      {
+        path: "archive/:archiveId/ticket/create",
+        element: <CreateTicketPage />,
+      },
+      {
+        path: "archive/:archiveId/ticket/:ticketId/edit",
+        element: <EditTicketPage />,
+      },
       { path: "community/new", element: <CommunityWrite /> },
       { path: "mypage", element: <MyPage /> },
       { path: "mypage/info", element: <MyInfoPage /> },
       { path: "mypage/archive", element: <MyArchivePage /> },
       { path: "mypage/friends", element: <FriendsPage /> },
-      { path: "*", element: <NotFound /> },
+
+      {
+        path: "/archive/:archiveId/diary/:diaryId", // 다른 사용자의 다이어리 상세 보기 또는 수정(작성자만)
+        element: <DiaryDetailPage />,
+      },
+      {
+        path: "/archive/:archiveId/diary/new", // 다이어리 작성
+        element: <DiaryWritePage />,
+      },
+      { path: "profile/:userId", element: <VisitProfilePage /> },
+      { path: "profile/:userId/archives", element: <VisitArchivePage /> },
     ],
   },
-];
-
-const router = createBrowserRouter([...publicRoutes, ...privateRoutes]);
+]);
 
 export default router;

@@ -1,136 +1,139 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import TicketBook from "@/components/ticket/TicketBook";
-import { useTickets } from "@/hooks/useTickets";
-// import { useNavigate } from "react-router-dom";
 import type { Ticket } from "@/types/ticket";
 import Pagination from "@/components/common/Pagination";
 import EditableTitle from "@/components/common/EditableTitle";
+import { useGetTicketBook } from "@/apis/queries/ticket/useGetTicket";
+import { useUpdateTicketBook } from "@/apis/mutations/ticket/usePatchTicket";
+import { useDeleteTicket } from "@/apis/mutations/ticket/useDeleteTicket";
+import { formatDateTime } from "@/utils/date";
+import TicketBookSkeleton from "@/components/ticket/TicketBookSkeleton";
+import { useGetArchive } from "@/apis/queries/archive/useGetArchive";
 
 export default function TicketBookPage() {
-  const initial: Ticket[] = []; // 실제 초기 데이터는 API에서 받음
-  const { tickets, addTicket, deleteTickets /* replaceAll? */ } =
-    useTickets(initial);
-  // const navigate = useNavigate();
+  const { archiveId: archiveIdParam } = useParams<{ archiveId: string }>();
+  const archiveId = Number(archiveIdParam);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Pagination state
-  const [page, setPage] = useState<number>(1);
-  const [pageSize] = useState<number>(4);
-  const [totalItems, setTotalItems] = useState<number>(0);
-  const [_, setLoading] = useState<boolean>(false); //loading
-  const [ticketbookName, setTicketbookName] =
-    useState<string>("티켓북명 (사용자 지정)");
+  const page = Number(searchParams.get("page")) || 1;
+  const pageSize = 4;
 
-  // 샘플 추가 (개발 편의)
-  const addSample = () => {
-    const id = `tmp-${Date.now()}`;
-    const now = new Date().toISOString();
-    const sample: Ticket = {
-      id,
-      eventName: `샘플 이벤트 ${totalItems + 1}`,
-      imageUrl: null,
-      isRepresentative: false,
-      dateTime: "2026.01.01 19:00",
-      place: "예시극장",
-      seat: "B-1",
-      rating: 2.5,
-      casting: "casting",
-      review:
-        "Lorem ipsum dolor sit amet consectetur. Et justo laoreet molestie magna tellus non. Vitae morbi nis.",
-      createdAt: now,
-    };
-    addTicket(sample);
-    setTotalItems((t) => t + 1);
-  };
+  // 편집 모드 상태
+  const [editMode, setEditMode] = useState(false);
+  const [checkedMap, setCheckedMap] = useState<Record<number, boolean>>({});
 
-  // 저장 콜백: 로컬 상태 업데이트, 나중에 API 호출로 대체
+  // 티켓북 제목 상태 (첫 로드 시에만 API에서 가져옴)
+  const [ticketbookName, setTicketbookName] = useState<string | null>(null);
+
+  // 아카이브 상세 조회 (소유자 여부 확인용)
+  const { data: archive } = useGetArchive({ archiveId });
+
+  // 티켓북 데이터 조회
+  const { data, isLoading, isError } = useGetTicketBook({
+    archiveId,
+    page: page - 1,
+    size: pageSize,
+  });
+
+  // 티켓북 이름 수정
+  const { mutate: updateTicketBookName } = useUpdateTicketBook();
+
+  // 티켓 삭제
+  const { mutate: deleteTicket } = useDeleteTicket();
+
+  // 첫 로드 시에만 티켓북 제목 설정
+  useEffect(() => {
+    if (data?.title && ticketbookName === null) {
+      setTicketbookName(data.title);
+    }
+  }, [data?.title, ticketbookName]);
+
+  // 티켓북 이름 저장
   const handleSaveName = (nextName: string) => {
     setTicketbookName(nextName);
-    // 나중에 API 연결: axios.post('/api/...', { name: nextName }) 등
+    updateTicketBookName({
+      archiveId,
+      title: nextName,
+    });
   };
 
-  // 1) tickets가 바뀌면 totalItems를 동기화 (항상 최신 값 유지)
-  useEffect(() => {
-    setTotalItems(tickets.length);
-    // 현재 페이지가 총 페이지 수를 초과하면 마지막 페이지로 보정
-    const lastPage = Math.max(
-      1,
-      Math.ceil(Math.max(0, tickets.length) / pageSize)
+  // 티켓 삭제 처리
+  const handleDeleteMany = (ids: number[]) => {
+    if (!ids || ids.length === 0) return;
+
+    ids.forEach((ticketId) => {
+      deleteTicket({ ticketId });
+    });
+  };
+
+  // 페이지 변경 처리
+  const handleOnChangePage = (newPage: number) => {
+    setSearchParams({ page: String(newPage) });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center">
+        <div className="w-310">
+          <div className="my-15">
+            <div className="h-10 w-full bg-gray-200 rounded animate-pulse" />
+          </div>
+          <div className="mt-5 mb-15">
+            <TicketBookSkeleton />
+          </div>
+          <div className="flex justify-center mb-12">
+            <div className="h-10 w-64 bg-gray-200 rounded animate-pulse" />
+          </div>
+        </div>
+      </div>
     );
-    if (page > lastPage) setPage(lastPage);
-  }, [tickets, pageSize, page]);
+  }
+  if (isError) return <div>에러가 발생했습니다.</div>;
 
-  // loadPage: 1-based pageNumber 받음
-  const loadPage = useCallback(async (pageNumber: number) => {
-    setLoading(true);
-    try {
-      // 나중에 API 로직으로 대체 (서버에 보낼 때 0-based로 변환 필요하면 변환)
-      setPage(pageNumber);
-    } catch (err) {
-      console.error("페이지 로드 실패", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // 데이터 변환: API 응답 → Ticket 타입
+  const tickets: Ticket[] =
+    data?.content?.map((item) => ({
+      id: item.id,
+      archiveId: archiveId,
+      eventName: item.title,
+      imageUrl: item.thumbnail,
+      dateTime: formatDateTime(item.date),
+      seat: item.seat,
+      place: item.location,
+      casting: item.casting,
+      rating: item.score,
+      review: item.review,
+      createdAt: item.createdAt,
+    })) ?? [];
 
-  const currentPageTickets = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-    return tickets.slice(start, end);
-  }, [tickets, page, pageSize]);
-
-  // 2) 삭제 처리: 부모에서 tickets 삭제 + totalItems 보정 + 페이지 보정
-  const handleDeleteMany = useCallback(
-    (ids: string[]) => {
-      if (!ids || ids.length === 0) return;
-
-      // (A) 로컬 훅에서 항목 삭제
-      deleteTickets(ids);
-
-      // (B) 새로운 total 계산: 현재 tickets 길이를 기준으로 계산
-      const newTotal = Math.max(0, tickets.length - ids.length);
-      setTotalItems(newTotal);
-
-      // (C) 페이지 보정: 현재 페이지가 비어있으면 마지막 페이지로 이동
-      const lastPageAfterDelete = Math.max(
-        1,
-        Math.ceil(newTotal / pageSize) || 1
-      );
-      setPage((curPage) => Math.min(curPage, lastPageAfterDelete));
-
-      // (D) 서버 연동이면 loadPage(resolvedPage)를 호출
-      // 예: const resolvedPage = Math.min(page, lastPageAfterDelete); loadPage(resolvedPage);
-    },
-    [deleteTickets, pageSize, tickets]
-  );
-
-  // mount 시 기본 페이지는 1
-  useEffect(() => {
-    setPage(1);
-  }, []);
+  const totalItems = data?.page?.totalElements ?? 0;
 
   return (
     <div className="flex flex-col items-center">
       <div className="w-310">
         <div className="my-15">
           <EditableTitle
-            value={ticketbookName}
+            value={ticketbookName ?? "티켓북"}
             onSave={handleSaveName}
             placeholder="티켓북명을 입력하세요."
             maxLength={50}
+            editable={archive?.isOwner ?? false}
           />
-          {/* UI 확인용 */}
-          <button
-            onClick={addSample}
-            className="ml-10 px-3 py-1 border rounded"
-          >
-            샘플 추가
-          </button>
         </div>
 
         <div className="mt-5 mb-15">
           <TicketBook
-            tickets={currentPageTickets}
+            key={page}
+            archiveId={archiveId}
+            tickets={tickets}
+            editMode={editMode}
+            setEditMode={setEditMode}
+            checkedMap={checkedMap}
+            setCheckedMap={setCheckedMap}
             onDeleteMany={handleDeleteMany}
+            isOwner={archive?.isOwner ?? false}
           />
         </div>
         <div className="flex justify-center mb-12">
@@ -139,7 +142,7 @@ export default function TicketBookPage() {
             pageSize={pageSize}
             visiblePages={5}
             currentPage={page}
-            onChange={(p) => loadPage(p)}
+            onChange={handleOnChangePage}
           />
         </div>
       </div>

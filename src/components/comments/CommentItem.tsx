@@ -11,11 +11,13 @@ import type { User } from "@/types/user";
 
 export type CommentModel = {
   id: string;
-  authorId: string;
+  authorId: string | number;
   authorName: string;
   text: string;
   createdAt: string;
-  replies?: CommentModel[]; // 답글 리스트 (원댓글의 하위)
+  replies?: CommentModel[];
+  serverId?: string | number;
+  isOwner?: boolean;
 };
 
 type Props = {
@@ -36,7 +38,17 @@ export default function CommentItem({
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
 
-  const isAuthor = currentUserId && currentUserId === comment.authorId;
+  const isAuthor =
+    typeof comment.isOwner === "boolean"
+      ? comment.isOwner
+      : currentUserId != null &&
+        String(comment.authorId) === String(currentUserId);
+
+  const isReplyAuthor = (r: CommentModel) => {
+    return typeof r.isOwner === "boolean"
+      ? r.isOwner
+      : currentUserId != null && String(r.authorId) === String(currentUserId);
+  };
 
   return (
     <div className="">
@@ -96,7 +108,7 @@ export default function CommentItem({
       {replyOpen && comment.replies && comment.replies.length > 0 && (
         <div className="bg-surface-container-20 border-t border-mid divide-y divide-border-mid">
           {comment.replies.map((r) => {
-            const isReplyAuthor = currentUserId && currentUserId === r.authorId;
+            const replyIsAuthor = isReplyAuthor(r);
             return (
               <div key={r.id}>
                 <div className="flex p-5">
@@ -123,7 +135,7 @@ export default function CommentItem({
                     </div>
                   </div>
                   <div className="flex flex-col ml-5 gap-2 items-end">
-                    {isReplyAuthor && (
+                    {replyIsAuthor && (
                       <ConfirmModal
                         trigger={
                           <button

@@ -1,32 +1,47 @@
-import React, { useMemo, useState } from "react";
+import { Fragment, useMemo, type Dispatch, type SetStateAction } from "react";
 import type { Ticket } from "@/types/ticket";
 import TicketCard from "./TicketCard";
 import TicketEmptyCard from "./TicketEmptyCard";
 import { useNavigate } from "react-router-dom";
 import ticketbook from "@/assets/images/ticketbook.png";
-import { Pencil, PlusIcon, SquareX } from "lucide-react";
+import { Pencil, PlusIcon, X } from "lucide-react";
 import { BtnIcon } from "@/components/common/Button/Btn";
 import TrashIcon from "@/assets/icon/TrashIcon";
 
-export default function TicketBook({
-  tickets,
-  onDeleteMany,
-}: {
+type TicketBookProps = {
+  archiveId: number;
   tickets: Ticket[];
-  onDeleteMany?: (ids: string[]) => void;
-}) {
+  editMode: boolean;
+  setEditMode: Dispatch<SetStateAction<boolean>>;
+  checkedMap: Record<number, boolean>;
+  setCheckedMap: Dispatch<SetStateAction<Record<number, boolean>>>;
+  onDeleteMany?: (ids: number[]) => void;
+  isOwner?: boolean;
+};
+
+export default function TicketBook({
+  archiveId,
+  tickets,
+  editMode,
+  setEditMode,
+  checkedMap,
+  setCheckedMap,
+  onDeleteMany,
+  isOwner = false,
+}: TicketBookProps) {
   const navigate = useNavigate();
-  const [editMode, setEditMode] = useState(false);
-  const [checkedMap, setCheckedMap] = useState<Record<string, boolean>>({});
 
   const hasTickets = tickets.length > 0;
 
-  const toggleCheck = (id: string, checked: boolean) => {
+  const toggleCheck = (id: number, checked: boolean) => {
     setCheckedMap((p) => ({ ...p, [id]: checked }));
   };
 
   const checkedIds = useMemo(
-    () => Object.keys(checkedMap).filter((k) => checkedMap[k]),
+    () =>
+      Object.keys(checkedMap)
+        .map(Number)
+        .filter((k) => checkedMap[k]),
     [checkedMap]
   );
 
@@ -41,8 +56,29 @@ export default function TicketBook({
     setEditMode(false);
   };
 
+  const handleToggleEditMode = () => {
+    setEditMode(!editMode);
+    if (editMode) {
+      setCheckedMap({});
+    }
+  };
+
+  const handleCreateTicket = () => {
+    navigate(`/archive/${archiveId}/ticket/create`);
+  };
+
+  const handleTicketCardClick = (ticket: Ticket) => {
+    if (!isOwner) return;
+    if (editMode) {
+      toggleCheck(ticket.id, !checkedMap[ticket.id]);
+    } else {
+      navigate(`/archive/${archiveId}/ticket/${ticket.id}/edit/`);
+    }
+  };
+
   const placementIndices = [0, 1, 2, 3];
 
+  // 서버에서 이미 createdAt 기준이지만 안정성을 위해 한 번 더 정렬로 생각하고 납두겠습니다
   const orderedTickets: Ticket[] = (() => {
     if (!tickets || tickets.length === 0) return [];
 
@@ -74,13 +110,13 @@ export default function TicketBook({
 
   return (
     <div className="w-full flex flex-col items-center gap-6">
-      {/* 툴바 */}
+      {/* 툴바 - 소유자만 편집 기능 표시 */}
       <div className="w-full max-w-[1240px] flex justify-end gap-5">
-        {hasTickets && (
+        {hasTickets && isOwner && (
           <>
             {!editMode && (
               <BtnIcon
-                onClick={() => navigate("/ticket/create")}
+                onClick={handleCreateTicket}
                 startIcon={<PlusIcon className="size-6 text-color-high" />}
               >
                 티켓 추가
@@ -95,13 +131,10 @@ export default function TicketBook({
               </BtnIcon>
             )}
             <BtnIcon
-              onClick={() => {
-                setEditMode((s) => !s);
-                setCheckedMap({});
-              }}
+              onClick={handleToggleEditMode}
               startIcon={
                 editMode ? (
-                  <SquareX className="size-6 text-color-high" />
+                  <X className="w-6 h-6 text-color-high" />
                 ) : (
                   <Pencil className="w-[16.5px] h-[17.5px] text-color-high" />
                 )
@@ -126,33 +159,23 @@ export default function TicketBook({
             {placed.map((slotTicket, idx) => {
               const side = idx % 2 === 0 ? "left" : "right";
               if (allEmpty) {
-                if (idx === 0) {
+                if (idx === 0 && isOwner) {
                   return (
                     <div key={idx} className="w-[430px]">
-                      <TicketEmptyCard
-                        onCreate={() => navigate("/ticket/create")}
-                      />
+                      <TicketEmptyCard onCreate={handleCreateTicket} />
                     </div>
                   );
                 }
-                return <React.Fragment key={idx} />;
+                return <Fragment key={idx} />;
               }
 
               if (slotTicket) {
                 return (
                   <div key={slotTicket.id} className="w-[430px]">
                     <TicketCard
-                      key={slotTicket.id}
                       ticket={slotTicket}
                       side={side}
-                      onClick={() => {
-                        if (editMode)
-                          toggleCheck(
-                            slotTicket.id,
-                            !checkedMap[slotTicket.id]
-                          );
-                        else navigate(`/ticket/edit/${slotTicket.id}`);
-                      }}
+                      onClick={() => handleTicketCardClick(slotTicket)}
                       selectable={editMode}
                       checked={!!checkedMap[slotTicket.id]}
                       onToggleCheck={toggleCheck}
@@ -160,7 +183,7 @@ export default function TicketBook({
                   </div>
                 );
               }
-              return <React.Fragment key={idx} />;
+              return <Fragment key={idx} />;
             })}
           </div>
         </div>

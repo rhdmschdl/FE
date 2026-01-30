@@ -103,7 +103,7 @@ export default function MediaCarousel({
                   if (!readOnly) onCardClick?.(it.id); // 읽기전용이면 클릭 무시
                 }}
                 img={it.url}
-                mediaType={it.type}
+                mediaType={it.mediaType}
                 type={it.isRepresentative ? "representative" : "normal"}
                 selected={selectedId === it.id}
                 onDelete={!readOnly ? () => onRemove?.(it.id) : undefined}

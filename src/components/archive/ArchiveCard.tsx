@@ -2,18 +2,19 @@ import { useEffect, useState } from "react";
 import vectorIcon from "@/assets/icon/VectorGray.svg";
 import { twMerge } from "tailwind-merge";
 import CheckboxIcon from "@/assets/icon/CheckboxIcon";
+import { PlusIcon } from "lucide-react";
 
 type Props = {
   archiveId?: number;
   userId?: number;
   title?: string;
-  bannerUrl?: string;
+  // bannerUrl?: string;
   image?: string;
-  viewCount?: number;
-  likeCount?: number;
   onClick?: () => void;
+  //편집 & 선택 관련
   isEditMode?: boolean;
   checked?: boolean;
+  isCreateMode?: boolean;
   onToggleCheck?: (id: string, checked: boolean) => void;
 };
 
@@ -21,11 +22,12 @@ const ArchiveCard = ({
   archiveId,
   userId,
   title,
-  bannerUrl,
+  // bannerUrl,
   image,
   onClick,
   isEditMode = false,
   checked = false,
+  isCreateMode = false,
   onToggleCheck,
 }: Props) => {
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -64,7 +66,6 @@ const ArchiveCard = ({
     <div
       data-archive-id={archiveId}
       data-user-id={userId}
-      data-banner-url={bannerUrl}
       onClick={handleCardClick}
       className="pt-[25px] px-5 flex flex-col items-center justify-center w-90 h-75 rounded-[10px] bg-brand-blue-400 cursor-pointer"
     >
@@ -82,8 +83,13 @@ const ArchiveCard = ({
             <CheckboxIcon checked={checked} disabled={false} size={24} />
           </button>
         )}
+        {isCreateMode && (
+          <div className="flex justify-center items-center w-full h-full">
+            <PlusIcon className="w-20 h-20 text-color-low" />
+          </div>
+        )}
         {/* 1) 이미지가 있고, 로딩 성공 */}
-        {hasImage && imageLoaded && !imageError && (
+        {!isCreateMode && hasImage && imageLoaded && !imageError && (
           <>
             <img
               src={image}
@@ -101,10 +107,10 @@ const ArchiveCard = ({
         )}
 
         {/* 2) 이미지가 있고, 로딩 중 */}
-        {isLoading && <p className="typo-body2 text-color-mid">로딩중...</p>}
+        {!isCreateMode && isLoading && <p className="typo-body2 text-color-mid">로딩중...</p>}
 
         {/* 3) 이미지가 없거나 로딩 실패 */}
-        {showFallbackIcon && !isLoading && (
+        {!isCreateMode && showFallbackIcon && !isLoading && (
           <div className="relative">
             <img
               src={vectorIcon}
@@ -118,7 +124,7 @@ const ArchiveCard = ({
           </div>
         )}
         {/* 4) 이미지가 있고, 로딩 성공 후 숨김 처리 */}
-        {hasImage && (
+        {!isCreateMode && hasImage && (
           <img
             src={image}
             alt="preload"
@@ -128,7 +134,6 @@ const ArchiveCard = ({
           />
         )}
       </div>
-
       <div className="bottom-0 w-90 h-24 rounded-b-[10px] bg-brand-blue-300">
         <p className="flex items-center h-24 px-5 typo-body1-semibold text-color-highest">
           {title ? title : "사용자가 지정한 아카이브 파일명"}

@@ -10,14 +10,14 @@ type CommunityTabProps = {
 };
 
 const DEFAULT_OPTIONS: Option[] = [
-  { label: "전체", value: "all" },
-  { label: "아이돌", value: "idol" },
-  { label: "배우", value: "actor" },
-  { label: "연주자", value: "performer" },
-  { label: "스포츠", value: "sports" },
-  { label: "아티스트", value: "artist" },
-  { label: "애니메이션", value: "animation" },
-  { label: "기타", value: "etc" },
+  { label: "전체", value: "ALL" },
+  { label: "아이돌", value: "IDOL" },
+  { label: "배우", value: "ACTOR" },
+  { label: "연주자", value: "MUSICIAN" },
+  { label: "스포츠", value: "SPORT" },
+  { label: "아티스트", value: "ARTIST" },
+  { label: "애니메이션", value: "ANIMATION" },
+  { label: "기타", value: "ETC" },
 ];
 
 export default function CommunityTab({

@@ -1,0 +1,9 @@
+export enum UploadStatus {
+  IDLE = "IDLE",
+  INITIATING = "INITIATING",
+  UPLOADING = "UPLOADING",
+  COMPLETING = "COMPLETING",
+  SUCCESS = "SUCCESS",
+  ERROR = "ERROR",
+  ABORTED = "ABORTED",
+}

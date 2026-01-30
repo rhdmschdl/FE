@@ -1,0 +1,6 @@
+export enum SseConnectionStatus {
+  CONNECTING = "CONNECTING",
+  CONNECTED = "CONNECTED",
+  DISCONNECTED = "DISCONNECTED",
+  ERROR = "ERROR",
+}

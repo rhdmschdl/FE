@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import ProfileBadge from "@/components/common/ProfileBadge";
 import ConfirmModal from "@/components/common/ConfirmModal";
 import footerImage from "../../assets/images/footer.png";
+import { useAuthStore } from "@/store/useAuthStore";
+import { useMutation } from "@tanstack/react-query";
+import { logout, withdraw } from "@/apis/mutations/auth/logout";
 
 function maskEmail(email?: string | null) {
   if (!email) return "";
@@ -19,12 +22,7 @@ function maskEmail(email?: string | null) {
 }
 
 export default function MyInfoPage() {
-  const currentUser = {
-    id: "u3",
-    nickname: "테스트",
-    avatarUrl: "undefiend",
-    email: "testtest@gmail.com",
-  };
+  const currentUser = useAuthStore((state) => state.user);
 
   const navigate = useNavigate();
 
@@ -39,6 +37,32 @@ export default function MyInfoPage() {
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
 
+  const logoutUser = useAuthStore((state) => state.logout);
+
+  // 로그아웃 뮤테이션
+  const logoutMutation = useMutation({
+    mutationFn: logout,
+    onSuccess: () => {
+      console.log("로그아웃 성공");
+      logoutUser();
+      navigate("/");
+    },
+    onError: (error) => {
+      console.error("로그아웃 실패:", error);
+    },
+  });
+
+  const withdrawMutation = useMutation({
+    mutationFn: withdraw,
+    onSuccess: () => {
+      console.log("회원탈퇴 성공");
+      logoutUser();
+      navigate("/");
+    },
+    onError: (error) => {
+      console.error("회원탈퇴 실패:", error);
+    },
+  });
   // API 호출
   useEffect(() => {
     setNameInput(currentUser?.nickname ?? "");
@@ -50,65 +74,12 @@ export default function MyInfoPage() {
     }
   }, [isEditingName]);
 
-  // const saveNickname = async (nextName: string) => {
-  //   const trimmed = nextName.trim().slice(0, 10);
-  //   if (!trimmed) {
-  //     // 빈값은 무시하거나 에러 처리
-  //     setNameInput(currentUser?.nickname ?? "");
-  //     setIsEditingName(false);
-  //     return;
-  //   }
-
-  //   if (trimmed === currentUser?.nickname) {
-  //     setIsEditingName(false);
-  //     return;
-  //   }
-
-  //   try {
-  //     // TODO: 실제 API 호출로 닉네임 저장
-  //     console.info("닉네임 저장 호출: ", trimmed);
-  //     // r상태 업데이트
-  //     //   await refetch?.();
-  //   } catch (err) {
-  //     console.error(err);
-  //     alert("닉네임 저장 중 오류가 발생했습니다.");
-  //   } finally {
-  //     setIsEditingName(false);
-  //   }
-  // };
-
-  // const handleNameKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (
-  //   e
-  // ) => {
-  //   if (e.key === "Enter") {
-  //     saveNickname(nameInput);
-  //   } else if (e.key === "Escape") {
-  //     setNameInput(currentUser?.nickname ?? "");
-  //     setIsEditingName(false);
-  //   }
-  // };
-
   const handleLogoutConfirm = () => {
-    // 로그아웃 로직: 토큰 삭제, 상태 초기화, 라우팅 등
-    try {
-      // clearAuth();
-      localStorage.removeItem("accessToken");
-      navigate("/login");
-    } catch (err) {
-      console.error(err);
-    }
+    logoutMutation.mutate();
   };
 
   const handleWithdrawConfirm = async () => {
-    try {
-      // TODO: 회원탈퇴 API 호출
-      // clearAuth();
-      localStorage.removeItem("accessToken");
-      navigate("/signup");
-    } catch (err) {
-      console.error(err);
-      alert("탈퇴 처리 중 오류가 발생했습니다.");
-    }
+    withdrawMutation.mutate();
   };
 
   return (
