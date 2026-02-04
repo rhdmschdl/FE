@@ -21,6 +21,7 @@ import {
 } from "@/apis/mutations/archive/archive";
 import { Visibility, type ArchiveResponse, type UpdateArchiveRequest } from "@/types/archive";
 import { useFileUpload } from "@/hooks/useFileUpload";
+import { useAuthStore } from "@/store/useAuthStore";
 import { MediaRole } from "@/enums/mediaRole";
 import { useRef, useState } from "react";
 import ConfirmModal from "@/components/common/ConfirmModal";
@@ -28,6 +29,7 @@ import { getMonthlyEvents, getMonthlyStickers } from "@/apis/queries/calendar/Ca
 
 const ArchiveDetail = () => {
   const navigate = useNavigate();
+  const currentUser = useAuthStore((state) => state.user);
 
   const urlParams = useParams();
   const archiveId = urlParams.archiveId;
@@ -208,7 +210,7 @@ const ArchiveDetail = () => {
           />
           <div className="flex flex-col items-start justify-between gap-[60px] my-[60px]">
             {/* 덕질 일기 */}
-            <DiaryList archiveId={archiveId} limit={3} isOwner={false} />
+            <DiaryList archiveId={archiveId} limit={3} isOwner={archive?.createdBy === currentUser?.id} />
             {/* 덕질 갤러리 */}
             <ArchiveTitle
               title="덕질 갤러리"
@@ -236,7 +238,7 @@ const ArchiveDetail = () => {
             <TicketList
               archiveId={archiveId}
               limit={3}
-              isOwner={false}
+              isOwner={archive?.createdBy === currentUser?.id}
             />
             {/* 덕질 리포스트 */}
             <ArchiveTitle
