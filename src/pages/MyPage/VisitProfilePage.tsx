@@ -65,7 +65,7 @@ export default function VisitProfilePage() {
         disabled: true,
         label: "친구",
         icon: <CheckIcon className="w-6 h-6 text-color-high" />,
-        onClick: () => {},
+        onClick: () => { },
       };
     }
     if (isPendingRequest) {

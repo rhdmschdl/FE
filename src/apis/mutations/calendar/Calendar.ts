@@ -17,7 +17,7 @@ export const DeleteCalendar = async (eventId: number): Promise<void> => {
 
 export const PostSticker = async (archiveId: number, data: CreateStickerRequest): Promise<StickerResponse> => {
   const response = await axiosInstance.post(`/api/v1/stickers/${archiveId}`, data);
-  return response.data;
+  return response.data; 
 }
 
 export const UpdateSticker = async (stickerId: number, data: CreateStickerRequest): Promise<StickerResponse> => {

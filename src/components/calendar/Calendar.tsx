@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactCalendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import "./Calendar.css"; // 커스텀 CSS
@@ -131,6 +131,58 @@ const Calendar = ({
 
   const calendarRootRef = useRef<HTMLDivElement | null>(null); // ✅ 추가
 
+  // ✅ [추가] 날짜별 이벤트 슬롯 계산 (연속된 일정을 같은 높이에 배치하기 위함)
+  const dateEventsMap = useMemo(() => {
+    const map = new Map<string, (LabelData | null)[]>();
+    if (!labelData) return map;
+
+    // 1. 정렬: 시작일 빠름 > 기간 김 > ID 순
+    const sortedEvents = [...labelData].sort((a, b) => {
+      if (a.startDate !== b.startDate) return a.startDate.localeCompare(b.startDate);
+      const durA = new Date(a.endDate).getTime() - new Date(a.startDate).getTime();
+      const durB = new Date(b.endDate).getTime() - new Date(b.startDate).getTime();
+      if (durA !== durB) return durB - durA;
+      return a.id - b.id;
+    });
+
+    // 2. 각 날짜별로 들어갈 자리(슬롯) 배정
+    sortedEvents.forEach((event) => {
+      const start = new Date(event.startDate);
+      const end = new Date(event.endDate);
+      const dates: string[] = [];
+
+      // 기간 내 날짜 배열 생성
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        dates.push(dateStr);
+      }
+
+      // 들어갈 수 있는 최소 인덱스(층) 찾기
+      let slotIndex = 0;
+      while (true) {
+        const isAvailable = dates.every((dateStr) => {
+          const daySlots = map.get(dateStr) || [];
+          return !daySlots[slotIndex]; // 해당 인덱스가 비어있어야 함
+        });
+        if (isAvailable) break;
+        slotIndex++;
+      }
+
+      // 해당 인덱스에 이벤트 할당
+      dates.forEach((dateStr) => {
+        const daySlots = map.get(dateStr) || [];
+        // 배열 중간이 비지 않도록 null로 채움
+        while (daySlots.length <= slotIndex) {
+          daySlots.push(null);
+        }
+        daySlots[slotIndex] = event;
+        map.set(dateStr, daySlots);
+      });
+    });
+
+    return map;
+  }, [labelData]);
+
   // 달력 바깥 클릭 시 active 해제 + 우클릭 모달 닫기
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -197,99 +249,117 @@ const Calendar = ({
     return "";
   };
   // ▼ [핵심] 타일 내부 렌더링 함수
+  // ... (tileContent 함수 내부)
   const tileContent = ({ date, view }: { date: Date; view: string }) => {
     if (view === "month") {
-      // 날짜 포맷 (YYYY-MM-DD) - 데이터 매칭용
+      // 날짜 포맷 (YYYY-MM-DD)
       const dateString = `${date.getFullYear()}-${String(
         date.getMonth() + 1
       ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
-      //라벨 더미 데이터 매칭
-      // const label = labelData?.find((label) => label.date === dateString);
-
-      //스티커 더미 데이터 매칭
-      // const sticker = stickerData?.find((sticker) => sticker.date === dateString);
+      // ✅ 계산된 슬롯 맵에서 해당 날짜의 이벤트 가져오기
+      const dayEvents = dateEventsMap.get(dateString) || [];
 
       return (
         <div
           className="flex flex-col items-start justify-start w-full h-full gap-1"
-          // 좌클릭 시 일정 보기 api 호출
           onClick={(e) => {
             e.stopPropagation();
             if (isReadonly) return;
             onChange(date);
+            // ... (기존 모달 닫기 로직들)
             setAdditionalPos(null);
             setIsAdditionalModalOpen(false);
-            // 스티커 옵션 모달 닫기
             setStickerOptionModalOpen(false);
             setStickerOptionPos(null);
             setSelectedSticker(null);
-            // 클릭한 날짜 저장
             setClickDate(date);
-            const dateString = `${date.getFullYear()}-${String(
-              date.getMonth() + 1
-            ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-            const dayEvents =
-              labelData?.filter((l) => l.date === dateString) || [];
-            setSelectedDateEvents(dayEvents);
+
+            // ✅ null이 아닌 실제 이벤트만 필터링해서 전달
+            const validEvents = dayEvents.filter((l): l is LabelData => l !== null);
+            setSelectedDateEvents(validEvents);
             setIsEventListModalOpen(true);
 
-            console.log("좌클릭:", dateString, "일정:", dayEvents);
+            console.log("좌클릭:", dateString, "일정:", validEvents);
           }}
-          // 우클릭 시 일정 추가 api 호출
+          // ... (onContextMenu는 기존 유지)
           onContextMenu={(e) => {
-            e.preventDefault(); // ✅ 브라우저 우클릭 메뉴 막기
+            // ... 기존 로직 ...
+            e.preventDefault();
             e.stopPropagation();
             if (isReadonly) return;
             onChange(date);
-
-            // 스티커 옵션 모달 닫기
             setStickerOptionModalOpen(false);
             setStickerOptionPos(null);
             setSelectedSticker(null);
-
             const root = calendarRootRef.current;
             if (!root) return;
-
             const rootRect = root.getBoundingClientRect();
-            const tileRect = (
-              e.currentTarget as HTMLElement
-            ).getBoundingClientRect();
-            // 달력 래퍼 기준으로 위치 계산 (타일 오른쪽/위쪽 근처에 띄우는 예시)
+            const tileRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
             setAdditionalPos({
               x: tileRect.right - rootRect.left - 85,
               y: tileRect.top - rootRect.top + 52,
             });
-
             setIsAdditionalModalOpen(true);
             setClickDate(date);
-            console.log(
-              "우클릭:",
-              String(date.getFullYear()) +
-              "년 " +
-              String(date.getMonth() + 1).padStart(2, "0") +
-              "월 " +
-              String(date.getDate()).padStart(2, "0") +
-              "일에 일정 추가 api 호출",
-              clickDate
-            );
           }}
         >
-          {/* 1. 커스텀 날짜 숫자 (우측 상단 배치 등 CSS로 제어) */}
+          {/* 1. 커스텀 날짜 숫자 */}
           <div className="custom-date-number w-full h-[36px] px-[16px] text-right typo-h2">
             {date.getDate()}
           </div>
 
-          {/* 2. 라벨 영역 */}
-          <div className="w-full flex flex-col items-start gap-[10px]">
-            {labelData
-              ?.filter((l) => l.date === dateString) // ✅ 해당 날짜만 필터링
-              .map((label, idx) => (
+          {/* 2. 라벨 영역 (수정됨) */}
+          <div className="w-full flex flex-col items-start gap-[2px]">
+            {dayEvents.map((label, idx) => {
+              // 빈 슬롯인 경우 (높이 유지용 투명 div)
+              if (!label) return <div key={idx} className="h-[24px] w-full" />;
+
+              const isStart = label.startDate === dateString;
+              const isEnd = label.endDate === dateString;
+              const dayOfWeek = date.getDay(); // 0: 일요일, 6: 토요일
+
+              // 스타일 클래스 계산
+              let roundedClass = "rounded-[4px]";
+              let marginClass = "";
+              let widthClass = "w-full";
+
+              // 기간이 다른 경우에만 연결 스타일 적용
+              if (label.startDate !== label.endDate) {
+                if (isStart) {
+                  roundedClass = "rounded-l-[4px] rounded-r-none";
+                  marginClass = "mr-[-6px] z-10"; // 오른쪽으로 확장
+                  widthClass = "w-[calc(100%+6px)]";
+                } else if (isEnd) {
+                  roundedClass = "rounded-r-[4px] rounded-l-none";
+                  marginClass = "ml-[-6px] z-10"; // 왼쪽으로 확장
+                  widthClass = "w-[calc(100%+6px)]";
+                } else {
+                  // 중간 날짜
+                  roundedClass = "rounded-none";
+                  marginClass = "mx-[-6px] z-0";
+                  widthClass = "w-[calc(100%+12px)]";
+                }
+
+                // 주의 시작(일요일)과 끝(토요일)에서는 끊어보이게 처리
+                if (dayOfWeek === 0 && !isStart) {
+                  roundedClass = roundedClass.replace("rounded-l-none", "rounded-l-[4px]").replace("rounded-none", "rounded-l-[4px]");
+                  marginClass = marginClass.replace("ml-[-6px]", "").replace("mx-[-6px]", "mr-[-6px]");
+                  widthClass = "w-[calc(100%+6px)]";
+                }
+                if (dayOfWeek === 6 && !isEnd) {
+                  roundedClass = roundedClass.replace("rounded-r-none", "rounded-r-[4px]").replace("rounded-none", "rounded-r-[4px]");
+                  marginClass = marginClass.replace("mr-[-6px]", "").replace("mx-[-6px]", "ml-[-6px]");
+                  widthClass = "w-[calc(100%+6px)]";
+                }
+              }
+
+              return (
                 <div
+                  key={idx}
                   onClick={(e) => {
                     e.stopPropagation();
                     if (isReadonly) return;
-                    // ✅ 스티커 옵션 모달 닫기
                     setStickerOptionModalOpen(false);
                     setStickerOptionPos(null);
                     setSelectedSticker(null);
@@ -300,60 +370,40 @@ const Calendar = ({
                       setClickDate(date);
                       setEventModalOpen(true);
                     }
-
-                    console.log(
-                      "라벨 클릭:",
-                      label.title,
-                      "라벨 데이터:",
-                      label
-                    );
                   }}
-                  key={idx}
-                  className="w-full typo-body1 text-left px-2 py-1 rounded-[4px] text-color-highest truncate cursor-pointer hover:opacity-80"
-                  style={{
-                    backgroundColor: label.color,
-                  }}
+                  className={`h-[24px] typo-body1 text-left px-2 py-0.5 text-color-highest truncate cursor-pointer hover:opacity-80 relative ${roundedClass} ${marginClass} ${widthClass}`}
+                  style={{ backgroundColor: label.color }}
                 >
-                  {label.title}
+                  {/* 시작일이거나, 주의 시작(일요일)일 때만 텍스트 표시 (선택 사항) */}
+                  {(isStart || dayOfWeek === 0) && label.title}
                 </div>
-              ))}
-            {/* 라벨 영역처럼 해당 날짜의 스티커만 표시 */}
+              );
+            })}
+
+            {/* 3. 스티커 영역 (기존 코드 유지) */}
             {(() => {
-              // 1️⃣ 해당 날짜에 스티커가 있는지 확인
+              // ... (기존 스티커 렌더링 코드)
               const sticker = stickerData?.find((s) => s.date === dateString);
-
-              // 2️⃣ 스티커가 없으면 아무것도 렌더링하지 않음 (모달도 당연히 안 나옴)
               if (!sticker) return null;
-
-              // 3️⃣ 스티커가 있을 때만 이 영역이 렌더링됨
               return (
                 <div
                   className="w-full h-[80px] rounded-[4px] flex items-center justify-center p-2 cursor-pointer hover:opacity-80"
                   onContextMenu={(e) => {
-                    // 4️⃣ 우클릭 이벤트는 스티커가 있을 때만 작동
+                    // ... (기존 스티커 우클릭 로직)
                     e.preventDefault();
                     e.stopPropagation();
                     if (isReadonly) return;
-                    // 다른 모달창 닫기
                     setIsAdditionalModalOpen(false);
-
-
-                    // 스티커 옵션 모달 열기
                     const root = calendarRootRef.current;
                     if (!root) return;
-
                     const rootRect = root.getBoundingClientRect();
                     const targetRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-
                     setStickerOptionPos({
                       x: targetRect.right - rootRect.left - 40,
                       y: targetRect.top - rootRect.top,
                     });
-
-                    setSelectedSticker(sticker);  // 5️⃣ 존재하는 스티커를 state에 저장
+                    setSelectedSticker(sticker);
                     setStickerOptionModalOpen(true);
-
-                    console.log("스티커 우클릭:", sticker);
                   }}
                 >
                   <img
@@ -459,6 +509,21 @@ const Calendar = ({
             onStickerModalOpen={() => {
               setIsAdditionalModalOpen(false);
               setEditLabelData(null);
+              // ✅ [수정] 선택한 날짜에 이미 스티커가 있는지 확인
+              if (clickDate && stickerData) {
+                const year = clickDate.getFullYear();
+                const month = String(clickDate.getMonth() + 1).padStart(2, "0");
+                const day = String(clickDate.getDate()).padStart(2, "0");
+                const dateStr = `${year}-${month}-${day}`;
+
+                // 해당 날짜의 스티커 찾기
+                const existingSticker = stickerData.find((s) => s.date === dateStr);
+
+                // 스티커가 있다면 수정 데이터로 설정 (수정 모드 진입), 없으면 null (생성 모드)
+                setEditStickerData(existingSticker || null);
+              } else {
+                setEditStickerData(null);
+              }
               setEventModalType(null);
               setEventModalOpen(true);
             }}

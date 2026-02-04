@@ -83,7 +83,6 @@ const Community = () => {
         textarea.style.left = "-9999px";
         document.body.appendChild(textarea);
         textarea.select();
-        document.execCommand("copy");
         document.body.removeChild(textarea);
       }
       window.alert("URL을 복사했습니다.");

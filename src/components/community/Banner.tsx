@@ -46,7 +46,7 @@ const Banner = ({ image, isEdit = false, onBannerSave }: BannerProps) => {
           className="w-full h-50 object-cover"
         />
       ) : (
-        <div className="w-full h-50 bg-brand-blue-200 animate-pulse" />
+        <div className="w-full h-50 bg-brand-blue-200" />
       )}
 
       {isEdit && (

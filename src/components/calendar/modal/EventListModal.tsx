@@ -108,7 +108,7 @@ const EventListModal = ({
         </div>
 
         {/* 이벤트 목록 */}
-        <div className="w-165 flex flex-col gap-5 min-h-95 overflow-y-auto">
+        <div className="w-165 flex flex-col gap-5 min-h-95 ">
           {label.length === 0 ? (
             <div className="w-165 h-full flex items-center justify-center">
               <p className="typo-body1 text-color-mid text-center pt-12 pb-8">
@@ -119,23 +119,29 @@ const EventListModal = ({
             label.map((label, idx) => (
               <div
                 key={idx}
-                className={`w-165 h-25 flex items-center py-1 gap-3 rounded-lg transition-all ${isDeleteTarget(label)
+                className={`w-165 min-h-25 flex items-center gap-3 rounded-lg transition-all ${isDeleteTarget(label)
                   ? "bg-red-100 opacity-50" // ✅ 삭제 대상 스타일
                   : "bg-surface-container-10"
                   }`}
               >
                 {/* 색상 인디케이터 */}
                 <div
-                  className="w-5 h-25 rounded-l-lg flex-shrink-0"
+                  className="w-5 self-stretch rounded-l-lg flex-shrink-0 py-1"
                   style={{ backgroundColor: label.color || "#82BEF5" }}
                 />
                 {/* 이벤트 정보 */}
-                <div className=" flex flex-col gap-2.5">
+                <div className="flex flex-col gap-2.5 py-1">
                   <p className="w-[556px] typo-h2-semibold text-color-highest truncate">
                     {label.title}
                   </p>
                   <p className="typo-body2 text-color-mid">
-                    {label.hasTime ? label.time : "하루 종일"}
+                    {label.startDate === label.endDate ?
+                      label.startDate :
+                      label.startDate + "~" + label.endDate
+                    }
+                  </p>
+                  <p className="typo-body2 text-color-mid">
+                    {label.hasTime ? label.startTime + " - " + label.endTime : "하루 종일"}
                     {label.isSportType && label.sportInfo && (
                       <span className="ml-2">
                         {label.sportInfo.team1} {label.sportInfo.score1} :{" "}
@@ -145,17 +151,24 @@ const EventListModal = ({
                   </p>
                   {/* 태그 */}
                   {label.hashtags && label.hashtags.length > 0 && (
-                    <p>
-                      {label.hashtags.slice(0, 2).map((tag, tagIdx) => (
+                    <div className="w-full flex flex-wrap gap-2 mt-1">
+                      {/* 최대 5개까지만 잘라서 렌더링 */}
+                      {label.hashtags.slice(0, 5).map((tag, tagIdx) => (
                         <span
                           key={tagIdx}
-                          className="py-0.5 px-2 typo-body2 text-color-high bg-brand-blue-100 rounded-full"
+                          className="py-0.5 px-2 typo-body2 text-color-high bg-brand-blue-100 rounded-full whitespace-nowrap"
                         >
                           #{tag}
-                          {"     "}
                         </span>
                       ))}
-                    </p>
+
+                      {/* 5개를 초과하면 ... 표시 추가 */}
+                      {label.hashtags.length > 5 && (
+                        <span className="py-0.5 px-2 typo-body2 text-color-high bg-brand-blue-100 rounded-full whitespace-nowrap">
+                          ...
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
                 {/* ✅ 편집 모드일 때만 삭제 버튼 표시 */}

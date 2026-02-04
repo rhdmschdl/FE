@@ -6,6 +6,7 @@ import type { CreateEventRequest, LabelData, StickerResponse, UpdateEventRequest
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PatchCalendar, PostCalendar, PostSticker, UpdateSticker } from "@/apis/mutations/calendar/Calendar";
 import type { StickerType } from "@/enums/sticker";
+import { AxiosError } from "axios";
 
 type ModalType = true | false | null;
 
@@ -67,17 +68,21 @@ const EventModal = ({
       queryClient.invalidateQueries({ queryKey: ["monthlyStickers", archiveId] });
       onClose();
     },
-    onError: (error) => {
-      console.error("스티커 생성 실패:", error);
-      alert("스티커 생성에 실패했습니다. 다시 시도해주세요.");
-    },
+    onError: (error: AxiosError) => {
+      if (error.response?.status === 409) {
+        alert("이미 스티커가 있습니다.");
+      }
+      else {
+        alert("스티커 생성에 실패했습니다. 다시 시도해주세요.");
+      }
+    }
   });
   // ✅ 스티커 수정 mutation 추가
   const updateStickerMutation = useMutation({
     mutationFn: (body: { date: string; stickerType: StickerType }) =>
       UpdateSticker(editStickerData?.id as number, body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["monthlyEvents", archiveId] });
+      queryClient.invalidateQueries({ queryKey: ["monthlyStickers", archiveId] });
       onClose();
     },
     onError: (error) => {

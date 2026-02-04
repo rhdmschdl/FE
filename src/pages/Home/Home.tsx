@@ -8,7 +8,9 @@ import FeedCard from "@/components/feed/FeedCard";
 import { Sort } from "@/enums/sort";
 import { archiveDataMock } from "@/mockData/archiveData";
 import { Visibility, type CreateArchiveRequest } from "@/types/archive";
+import { mapCategoryToLabel } from "@/utils/categoryMapper";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 const Home = () => {
@@ -55,8 +57,30 @@ const Home = () => {
     })
   });
 
+  const handleShare = useCallback(async (postId: number | string) => {
+    const url = `${window.location.origin}/community/${postId}`;
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = url;
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.body.removeChild(textarea);
+      }
+      window.alert("URL을 복사했습니다.");
+    } catch (err) {
+      console.error("복사 실패:", err);
+      window.alert("URL 복사에 실패했습니다.");
+    }
+  }, []);
 
   const hotFeed = hotFeedData?.content ?? [];
+
   return (
     <div className="flex flex-col items-center justify-center my-15">
       <div className="max-w-[1920px] mx-auto flex flex-col items-center gap-[60px]">
@@ -129,11 +153,13 @@ const Home = () => {
                   key={hotCommunity.postId}
                   title={hotCommunity.title}
                   img={hotCommunity.thumbnailUrl ?? undefined}
-                  categoryLabel={hotCommunity.category}
+                  categoryLabel={mapCategoryToLabel(hotCommunity.category) ?? hotCommunity.category}
+                  categoryValue={hotCommunity.category}
                   content={hotCommunity.summary ?? "게시글 내용"}
                   onClick={() => {
                     navigate(`/community/${hotCommunity.postId}`);
                   }}
+                  onClickShare={() => handleShare(hotCommunity.postId)}
                 />
               ))}
             </div>

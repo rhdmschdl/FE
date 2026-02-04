@@ -4,19 +4,23 @@ import CheckboxIcon from "@/assets/icon/CheckboxIcon";
 
 type CalendarDateProps = {
   startDateValue: Date | null;
+  endDateValue: Date | null;
   onDateChange?: (data: {
     startDate: Date | null;
     endDate: Date | null;
     isAllDay: boolean;
   }) => void;
   initialTime?: string;
+  initialEndTime?: string; // ✅ 종료 시간 prop 추가
   initialIsAllDay?: boolean;
 };
 
 const CalendarDate = ({
   startDateValue,
+  endDateValue,
   onDateChange,
   initialTime,
+  initialEndTime,
   initialIsAllDay,
 }: CalendarDateProps) => {
   // ✅ 날짜와 시간을 합쳐서 초기값 생성
@@ -34,11 +38,25 @@ const CalendarDate = ({
     getInitialDate(startDateValue, initialTime)
   );
   const [endDate, setEndDate] = useState<Date | null>(
-    getInitialDate(startDateValue, initialTime)
+    getInitialDate(endDateValue, initialEndTime)
   );
   const [isAllDay, setIsAllDay] = useState<boolean>(initialIsAllDay || false);
 
-  // ✅ 값이 변경될 때마다 부모에게 알림
+  // [추가/수정] 날짜가 변경될 때 시작일/종료일이 다르면 '하루 종일' 강제 설정
+  useEffect(() => {
+    if (startDate && endDate) {
+      const isSameDate =
+        startDate.getFullYear() === endDate.getFullYear() &&
+        startDate.getMonth() === endDate.getMonth() &&
+        startDate.getDate() === endDate.getDate();
+
+      if (!isSameDate) {
+        setIsAllDay(true);
+      }
+    }
+  }, [startDate, endDate]);
+
+  // 값이 변경될 때마다 부모에게 알림
   useEffect(() => {
     onDateChange?.({ startDate, endDate, isAllDay });
   }, [startDate, endDate, isAllDay, onDateChange]);

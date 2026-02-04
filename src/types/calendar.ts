@@ -25,9 +25,11 @@ export type SportInfo = {
 export type LabelData = {
   id: number;
   title: string;
-  date: string;
-  time?: string;
-  hasTime: boolean; //하루종일 버튼 체크 여부 false: 하루종일, true: 시간 선택
+  startDate: string;
+  startTime: string;
+  endDate: string;
+  endTime: string;
+  hasTime: boolean;
   color: string;
   isSportType?: boolean; //생성할 때 스포츠 타입 여부 true: 스포츠, false: 일반
   sportInfo?: SportInfo; //스포츠 정보
@@ -38,20 +40,24 @@ export type LabelData = {
 export type EventResponse = {
   id: number;
   title: string;
-  date: string;
-  time?: string;
-  hasTime: boolean; //하루종일 버튼 체크 여부 false: 하루종일, true: 시간 선택
+  startDate: string;
+  startTime: string;
+  endDate: string;
+  endTime: string;
+  hasTime: boolean;
   color: string;
-  isSportType?: boolean; //생성할 때 스포츠 타입 여부 true: 스포츠, false: 일반
-  sportInfo?: SportInfo; //스포츠 정보
-  hashtags?: string[]; //태그
+  sportInfo?: SportInfo;
+  hashtags?: string[];
+  isSportType?: boolean;
 }
 
 // 이벤트 생성 요청
 export type CreateEventRequest = {
   title: string;
-  date: string;
-  time?: string;
+  startDate: string;
+  startTime: string;
+  endDate: string;
+  endTime: string;
   hasTime: boolean;
   color: string;
   sportInfo?: SportInfo;
@@ -61,8 +67,10 @@ export type CreateEventRequest = {
 
 export type UpdateEventRequest = {
   title?: string;
-  date?: string;
-  time?: string;
+  startDate?: string;
+  startTime?: string;
+  endDate?: string;
+  endTime?: string;
   hasTime?: boolean;
   color?: string;
   sportInfo?: SportInfo;

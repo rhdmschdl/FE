@@ -25,10 +25,16 @@ const Sports = ({ onClose, startDate, editData, onSubmit }: SportsProps) => {
   const isEditMode = !!editData;
 
   const [eventTitle, setEventTitle] = useState(editData?.title || "");
+
+  // 날짜 문자열을 Date 객체로 변환하는 헬퍼 함수
+  const parseDateString = (dateStr?: string) => {
+    return dateStr ? new Date(dateStr) : null;
+  };
+
   // ✅ editData가 있으면 해당 데이터로 초기화
   const [dateData, setDateData] = useState<DateData>({
-    startDate: editData ? new Date(editData.date) : startDate,
-    endDate: editData ? new Date(editData.date) : null,
+    startDate: editData ? parseDateString(editData.startDate) : startDate,
+    endDate: editData ? parseDateString(editData.endDate) : startDate,
     isAllDay: editData ? !editData.hasTime : false,
   });
 
@@ -46,25 +52,38 @@ const Sports = ({ onClose, startDate, editData, onSubmit }: SportsProps) => {
       alert("시작 날짜를 선택해주세요.");
       return;
     }
-
-    // ✅ 로컬 기준 날짜 문자열
-    const year = dateData.startDate.getFullYear();
-    const month = String(dateData.startDate.getMonth() + 1).padStart(2, "0");
-    const day = String(dateData.startDate.getDate()).padStart(2, "0");
-    const date = `${year}-${month}-${day}`;
-
-    // ✅ 로컬 기준 시간 문자열 (하루종일이 아니면)
-    let time: string | undefined;
-    if (!dateData.isAllDay) {
-      const hours = String(dateData.startDate.getHours()).padStart(2, "0");
-      const minutes = String(dateData.startDate.getMinutes()).padStart(2, "0");
-      time = `${hours}:${minutes}`;
+    if (!dateData.endDate) {
+      alert("종료 날짜를 선택해주세요.");
+      return;
     }
+
+    // ✅ 날짜 포맷팅 함수 (YYYY-MM-DD)
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    // ✅ 시간 포맷팅 함수 (HH:mm)
+    const formatTime = (date: Date) => {
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      return `${hours}:${minutes}`;
+    };
+
+    const startDateStr = formatDate(dateData.startDate);
+    const endDateStr = formatDate(dateData.endDate);
+
+    const startTimeStr = !dateData.isAllDay ? formatTime(dateData.startDate) : "00:00";
+    const endTimeStr = !dateData.isAllDay ? formatTime(dateData.endDate) : "00:00";
 
     const body: Omit<CreateEventRequest, "isSportType"> = {
       title: eventTitle || "스포츠 결과 기록",
-      date,
-      time,
+      startDate: startDateStr,
+      startTime: startTimeStr,
+      endDate: endDateStr,
+      endTime: endTimeStr,
       hasTime: !dateData.isAllDay,
       color,
       hashtags: tags,
@@ -83,7 +102,6 @@ const Sports = ({ onClose, startDate, editData, onSubmit }: SportsProps) => {
     <div className="flex flex-col gap-12 items-start">
       {/* 일정 이름 */}
       <div className="w-full flex items-center justify-between">
-        {/* <p className="typo-h1 text-color-highest text-left">스포츠 결과 기록</p> */}
         <EditableTitle
           value={eventTitle || "스포츠 결과 기록"}
           onSave={(next) => setEventTitle(next)}
@@ -98,9 +116,11 @@ const Sports = ({ onClose, startDate, editData, onSubmit }: SportsProps) => {
       {/* 일정 기간 */}
       <CalendarDate
         startDateValue={dateData.startDate}
+        endDateValue={dateData.endDate} // ✅ 추가
         onDateChange={setDateData}
-        initialTime={editData?.time} // ✅ 추가
-        initialIsAllDay={editData ? !editData.hasTime : false} // ✅ 추가
+        initialTime={editData?.startTime} // ✅ 변경
+        initialEndTime={editData?.endTime} // ✅ 추가
+        initialIsAllDay={editData ? !editData.hasTime : false}
       />
       {/* 태그 설정 */}
       <CalendarTag tags={tags} onTagChange={(data) => setTags(data.tags)} />
@@ -109,58 +129,34 @@ const Sports = ({ onClose, startDate, editData, onSubmit }: SportsProps) => {
         initialColor={{ color }}
         onColorChange={(data) => setColor(data?.color || color)}
       />
-      {/* 경기결과 */}
+      {/* 경기결과 (기존 코드 유지) */}
       <div className="w-165 flex gap-5 items-center">
         <p className="typo-h2-semibold text-color-highest">경기결과</p>
-        {/* 스코어 기록 칸 */}
         <div className="h-10 flex items-center gap-4 justify-center">
-          {/* 팀이름 */}
           <input
-            className="w-30 h-10 p-2.5 typo-body1 text-color-highest 
-            placeholder:text-color-mid border-2 border-border-mid rounded-lg text-center"
+            className="w-30 h-10 p-2.5 typo-body1 text-color-highest placeholder:text-color-mid border-2 border-border-mid rounded-lg text-center"
             placeholder="팀 이름"
             value={scoreData.teamName}
-            onChange={(e) =>
-              setScoreData({ ...scoreData, teamName: e.target.value })
-            }
+            onChange={(e) => setScoreData({ ...scoreData, teamName: e.target.value })}
           />
-          {/* 스코어 */}
           <input
-            className="w-[70px] h-10 p-2.5 typo-body1 text-color-highest 
-            placeholder:text-color-mid border-2 border-border-mid rounded-lg text-center"
+            className="w-[70px] h-10 p-2.5 typo-body1 text-color-highest placeholder:text-color-mid border-2 border-border-mid rounded-lg text-center"
             placeholder="스코어"
             value={scoreData.score}
-            onChange={(e) =>
-              setScoreData({
-                ...scoreData,
-                score: parseInt(e.target.value, 10) || 0
-              })
-            }
+            onChange={(e) => setScoreData({ ...scoreData, score: parseInt(e.target.value, 10) || 0 })}
           />
-          {/* : */}
           <p className="typo-body1 text-color-high">:</p>
-          {/* 스코어 */}
           <input
-            className="w-[70px] h-10 p-2.5 typo-body1 text-color-highest 
-            placeholder:text-color-mid border-2 border-border-mid rounded-lg text-center"
+            className="w-[70px] h-10 p-2.5 typo-body1 text-color-highest placeholder:text-color-mid border-2 border-border-mid rounded-lg text-center"
             placeholder="스코어"
             value={scoreData.score2}
-            onChange={(e) =>
-              setScoreData({
-                ...scoreData,
-                score2: parseInt(e.target.value, 10) || 0
-              })
-            }
+            onChange={(e) => setScoreData({ ...scoreData, score2: parseInt(e.target.value, 10) || 0 })}
           />
-          {/* 팀이름 */}
           <input
-            className="w-30 h-10 p-2.5 typo-body1 text-color-highest 
-            placeholder:text-color-mid border-2 border-border-mid rounded-lg text-center"
+            className="w-30 h-10 p-2.5 typo-body1 text-color-highest placeholder:text-color-mid border-2 border-border-mid rounded-lg text-center"
             placeholder="팀 이름"
             value={scoreData.teamName2}
-            onChange={(e) =>
-              setScoreData({ ...scoreData, teamName2: e.target.value })
-            }
+            onChange={(e) => setScoreData({ ...scoreData, teamName2: e.target.value })}
           />
         </div>
       </div>

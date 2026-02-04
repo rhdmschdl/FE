@@ -20,8 +20,8 @@ const Event = ({ onClose, startDate, editData, onSubmit }: EventProps) => {
   // ✅ editData가 있으면 해당 데이터로 초기화
   const [eventTitle, setEventTitle] = useState(editData?.title || "");
   const [dateData, setDateData] = useState<DateData>({
-    startDate: editData ? new Date(editData.date) : startDate,
-    endDate: null,
+    startDate: editData ? new Date(editData.startDate) : startDate,
+    endDate: editData ? new Date(editData.endDate) : startDate,
     isAllDay: editData ? !editData.hasTime : false,
   });
   const [tags, setTags] = useState<string[]>(editData?.hashtags || []);
@@ -32,25 +32,39 @@ const Event = ({ onClose, startDate, editData, onSubmit }: EventProps) => {
       alert("시작 날짜를 선택해주세요.");
       return;
     }
-
-    // ✅ 로컬 기준 날짜 문자열
-    const year = dateData.startDate.getFullYear();
-    const month = String(dateData.startDate.getMonth() + 1).padStart(2, "0");
-    const day = String(dateData.startDate.getDate()).padStart(2, "0");
-    const date = `${year}-${month}-${day}`;
-
-    // ✅ 로컬 기준 시간 문자열 (하루종일이 아니면)
-    let time: string | undefined;
-    if (!dateData.isAllDay) {
-      const hours = String(dateData.startDate.getHours()).padStart(2, "0");
-      const minutes = String(dateData.startDate.getMinutes()).padStart(2, "0");
-      time = `${hours}:${minutes}`;
+    if (!dateData.endDate) {
+      alert("종료 날짜를 선택해주세요.");
+      return;
     }
+
+    // ✅ 날짜 포맷팅 함수 (YYYY-MM-DD)
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    // ✅ 시간 포맷팅 함수 (HH:mm)
+    const formatTime = (date: Date) => {
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      return `${hours}:${minutes}`;
+    };
+
+    const startDateStr = formatDate(dateData.startDate);
+    const endDateStr = formatDate(dateData.endDate);
+
+    // 하루종일이면 시간은 "00:00" 혹은 빈 문자열 (API 스펙에 따라 조정, 여기선 00:00으로 가정)
+    const startTimeStr = !dateData.isAllDay ? formatTime(dateData.startDate) : "00:00";
+    const endTimeStr = !dateData.isAllDay ? formatTime(dateData.endDate) : "00:00";
 
     const body: Omit<CreateEventRequest, "isSportType"> = {
       title: eventTitle || "무제 일정",
-      date,
-      time,
+      startDate: startDateStr,
+      startTime: startTimeStr,
+      endDate: endDateStr,
+      endTime: endTimeStr,
       hasTime: !dateData.isAllDay,
       color,
       hashtags: tags,
@@ -78,9 +92,11 @@ const Event = ({ onClose, startDate, editData, onSubmit }: EventProps) => {
       {/* 일정 기간 */}
       <CalendarDate
         startDateValue={dateData.startDate}
+        endDateValue={dateData.endDate} // ✅ 추가
         onDateChange={setDateData}
-        initialTime={editData?.time} // ✅ 추가
-        initialIsAllDay={editData ? !editData.hasTime : false} // ✅ 추가
+        initialTime={editData?.startTime} // ✅ 변경
+        initialEndTime={editData?.endTime} // ✅ 추가
+        initialIsAllDay={editData ? !editData.hasTime : false}
       />
       {/* 태그 설정 */}
       <CalendarTag tags={tags} onTagChange={(data) => setTags(data.tags)} />
