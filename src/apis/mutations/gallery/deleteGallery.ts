@@ -1,20 +1,15 @@
 import axiosInstance from "@/apis/axios";
+import type {
+  DeleteGalleryRequest,
+  DeleteGalleryResponse,
+} from "@/types/gallery";
 
-export type DeleteGalleryRequest = {
-  galleryIds: Array<number>;
-};
-
-export type DeleteGalleryResponse = void;
-
-export async function deleteGalleryApi(
-  archiveId: string | number,
-  payload: DeleteGalleryRequest
-): Promise<DeleteGalleryResponse> {
-  const url = `/api/v1/gallery/${archiveId}`;
-  const res = await axiosInstance.delete(url, {
-    data: payload,
+export const deleteGallery = async (
+  data: DeleteGalleryRequest
+): Promise<DeleteGalleryResponse> => {
+  const { archiveId, galleryIds } = data;
+  const response = await axiosInstance.delete(`/api/v1/gallery/${archiveId}`, {
+    data: { galleryIds },
   });
-  return res.data;
-}
-
-export default deleteGalleryApi;
+  return response.data;
+};

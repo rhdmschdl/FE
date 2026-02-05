@@ -41,7 +41,7 @@ export default function TicketBookPage() {
   const { mutate: updateTicketBookName } = useUpdateTicketBook();
 
   // 티켓 삭제
-  const { mutate: deleteTicket } = useDeleteTicket();
+  const { mutateAsync: deleteTicketAsync } = useDeleteTicket();
 
   // 첫 로드 시에만 티켓북 제목 설정
   useEffect(() => {
@@ -60,12 +60,22 @@ export default function TicketBookPage() {
   };
 
   // 티켓 삭제 처리
-  const handleDeleteMany = (ids: number[]) => {
+  const handleDeleteMany = async (ids: number[]) => {
     if (!ids || ids.length === 0) return;
 
-    ids.forEach((ticketId) => {
-      deleteTicket({ ticketId });
-    });
+    try {
+      await Promise.all(ids.map((ticketId) => deleteTicketAsync({ ticketId })));
+
+      // 삭제 후 현재 페이지가 유효한지 체크
+      const currentTotal = data?.page?.totalElements ?? 0;
+      const newTotal = currentTotal - ids.length;
+      const newTotalPages = Math.max(1, Math.ceil(newTotal / pageSize));
+      if (page > newTotalPages) {
+        setSearchParams({ page: "1" });
+      }
+    } catch (error) {
+      console.error("티켓 삭제 실패:", error);
+    }
   };
 
   // 페이지 변경 처리

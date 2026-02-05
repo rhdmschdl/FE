@@ -10,13 +10,13 @@ import NewbieBadge from "@/assets/icon/badge/Newbie.tsx";
 import StanBadge from "@/assets/icon/badge/Stan.tsx";
 import SupporterBadge from "@/assets/icon/badge/Supporter.tsx";
 import MasterBadge from "@/assets/icon/badge/Master.tsx";
-import type { Visibility } from "@/types/archive";
+import type { Badge, Visibility } from "@/types/archive";
 
 
 interface ArchiveHeaderProps {
   title?: string;
   ownerNickname?: string;
-  badge?: string;
+  badge?: Badge;
   createdAt?: string;
   isMenu?: boolean;
   visibility?: Visibility;

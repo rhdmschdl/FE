@@ -19,6 +19,10 @@ export const queryKeys = {
     all: ["diaryBook"] as const,
     detail: (archiveId: number) => ["diaryBook", archiveId] as const,
   },
+  gallery: {
+    all: ["gallery"] as const,
+    list: (archiveId: number) => ["gallery", archiveId] as const,
+  },
   friend: {
     all: ["friend"] as const,
     status: (friendId: number) => ["friend", "status", friendId] as const,

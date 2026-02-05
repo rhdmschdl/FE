@@ -10,18 +10,18 @@ import { useUpdateDiaryBook } from "@/apis/mutations/diary/usePatchDiary";
 import { useDeleteDiary } from "@/apis/mutations/diary/useDeleteDiary";
 import { useGetArchive } from "@/apis/queries/archive/useGetArchive";
 import { Pencil, Plus, X, Trash2 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 const DiaryPage = () => {
   const params = useParams();
   const archiveId = Number(params.archiveId);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [isEditMode, setIsEditMode] = useState(false);
-
   const [selectedDiaryIds, setSelectedDiaryIds] = useState<number[]>([]);
 
-  const [page, setPage] = useState(0);
+  const page = Number(searchParams.get("page")) || 1;
   const pageSize = 9;
 
   // 아카이브 상세 조회 (소유자 여부 확인용)
@@ -30,7 +30,7 @@ const DiaryPage = () => {
 
   const { data } = useGetDiaryBook({
     archiveId,
-    page,
+    page: page - 1,
     size: pageSize,
   });
 
@@ -38,7 +38,7 @@ const DiaryPage = () => {
   const { mutate: updateDiaryBookName } = useUpdateDiaryBook();
 
   // 다이어리 삭제
-  const { mutate: deleteDiary } = useDeleteDiary();
+  const { mutateAsync: deleteDiaryAsync } = useDeleteDiary();
 
   const diaryList = data?.content ?? [];
   const totalItems = data?.page?.totalElements ?? 0;
@@ -53,7 +53,7 @@ const DiaryPage = () => {
   };
 
   const handlePageChange = (newPage: number) => {
-    setPage(newPage - 1);
+    setSearchParams({ page: String(newPage) });
   };
 
   const handleEditToggle = () => {
@@ -73,17 +73,28 @@ const DiaryPage = () => {
     );
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (selectedDiaryIds.length === 0) return;
 
-    // 선택된 다이어리 삭제
-    selectedDiaryIds.forEach((diaryId) => {
-      deleteDiary({ diaryId });
-    });
+    try {
+      // 선택된 다이어리 삭제
+      await Promise.all(
+        selectedDiaryIds.map((diaryId) => deleteDiaryAsync({ diaryId }))
+      );
 
-    // 삭제 후 편집 모드 종료
-    setIsEditMode(false);
-    setSelectedDiaryIds([]);
+      // 삭제 후 현재 페이지가 유효한지 체크
+      const newTotal = totalItems - selectedDiaryIds.length;
+      const newTotalPages = Math.max(1, Math.ceil(newTotal / pageSize));
+      if (page > newTotalPages) {
+        setSearchParams({ page: "1" });
+      }
+
+      // 삭제 후 편집 모드 종료
+      setIsEditMode(false);
+      setSelectedDiaryIds([]);
+    } catch (error) {
+      console.error("다이어리 삭제 실패:", error);
+    }
   };
 
   return (
@@ -169,7 +180,7 @@ const DiaryPage = () => {
                     totalItems={totalItems}
                     pageSize={pageSize}
                     visiblePages={5}
-                    currentPage={page + 1}
+                    currentPage={page}
                     onChange={handlePageChange}
                   />
                 </div>

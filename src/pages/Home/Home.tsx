@@ -111,7 +111,7 @@ const Home = () => {
                   isEditMode={false}
                   title={sampleArchive.title}
                   onClick={() => {
-                    navigate(`/archive/${sampleArchive.archiveId}`);
+                    navigate(`/sample-archive/${sampleArchive.archiveId}`);
                   }}
                 />
               ))}

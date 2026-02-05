@@ -56,6 +56,7 @@ const ArchiveDetail = () => {
     queryFn: () => GetArchiveDetail(archiveIdNum),
     retry: false,
   });
+  console.log("archive", archive);
 
   // 아카이브 업데이트
   const updateArchiveMutation = useMutation({

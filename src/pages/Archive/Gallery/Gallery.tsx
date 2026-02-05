@@ -1,172 +1,111 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import EmptyList from "@/components/archive/Empty/EmptyList";
 import EditableTitle from "@/components/common/EditableTitle";
 import { BtnIcon } from "@/components/common/Button/Btn";
 import Pagination from "@/components/common/Pagination";
 import CheckboxIcon from "@/assets/icon/CheckboxIcon";
-import { v4 as uuidv4 } from "uuid";
 import { Pencil, X, Camera } from "lucide-react";
 import TrashIcon from "@/assets/icon/TrashIcon";
-import fetchGallery from "@/apis/queries/gallery/getGallery";
-import registerGalleryApi from "@/apis/mutations/gallery/registerGallery";
 import { useFileUpload } from "@/hooks/useFileUpload";
-import { MediaRole } from "@/enums/mediaRole";
-import type { FileCompleteResponse } from "@/types/file";
-import deleteGalleryApi from "@/apis/mutations/gallery/deleteGallery";
-import ImageWithSkeleton from "@/components/gallery/ImageWithSkeleton";
-import updateGalleryTitleApi from "@/apis/mutations/gallery/updateGalleryTitle";
 
-type Photo = {
-  id: string;
-  url: string;
-  fileName?: string;
-  createdAt?: string;
-  isNew?: boolean;
-};
-
-type GalleryResp = {
-  content?: any[];
-  page?: { totalPages?: number; totalElements?: number };
-  title?: string;
-};
+import { useGetGallery } from "@/apis/queries/gallery/useGetGallery";
+import { useDeleteGallery } from "@/apis/mutations/gallery/useDeleteGallery";
+import { useUpdateGallery } from "@/apis/mutations/gallery/usePatchGalleryTitle";
+import { useAddGallery } from "@/apis/mutations/gallery/usePostGallery";
 
 const PER_PAGE = 9;
 const MAX_UPLOAD = 10;
 
 export default function Gallery() {
-  const { archiveId } = useParams<{ archiveId: string }>();
-  const [title, setTitle] = useState<string>("");
-  const [, setIsSaving] = useState<boolean>(false);
-  const [photos, setPhotos] = useState<Photo[]>([]);
-  const [page, setPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [totalElements, setTotalElements] = useState<number>(0);
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [isUploading] = useState(false); //setIsUploading
-  const [checkedMap, setCheckedMap] = useState<Record<string, boolean>>({});
-  const [, setIsLoading] = useState<boolean>(false);
-  const [, setLoadError] = useState<string | null>(null);
+  const { archiveId: archiveIdParam } = useParams<{ archiveId: string }>();
+  const archiveId = archiveIdParam ? archiveIdParam : undefined;
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = Number(searchParams.get("page")) || 1;
+
+  const [title, setTitle] = useState<string>("갤러리명 (사용자 지정)");
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [checkedMap, setCheckedMap] = useState<Record<string, boolean>>({});
+  const [thumbnailLoaded, setThumbnailLoaded] = useState<
+    Record<string, boolean>
+  >({});
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { uploadFiles } = useFileUpload();
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const createdUrlsRef = useRef<Set<string>>(new Set());
-  const controllerRef = useRef<AbortController | null>(null);
+  // React Query 훅들
+  const { data, isLoading, isError } = useGetGallery({
+    archiveId: archiveId ?? "",
+    page: Math.max(0, page - 1),
+    size: PER_PAGE,
+  });
 
-  // 갤러리명 저장
-  const handleSaveName = async (nextName: string) => {
-    setTitle(nextName);
+  const { mutateAsync: deleteGallery, isPending: isDeleting } =
+    useDeleteGallery();
+  const { mutateAsync: updateGalleryTitle } = useUpdateGallery();
+  const { mutateAsync: addGallery, isPending: isAdding } = useAddGallery();
 
-    // archiveId 검사
-    if (!archiveId) {
-      alert("아카이브 ID가 없습니다.");
-      return;
-    }
+  // 서버 응답 기반 photos
+  const photos = useMemo(() => {
+    return (data?.content ?? []).map((it: any) => {
+      const id = String(it.id ?? it.fileId);
+      // thumbnailUrl이 로드 완료되면 사용, 아니면 originalUrl 사용
+      const url =
+        it.thumbnailUrl && thumbnailLoaded[id]
+          ? it.thumbnailUrl
+          : (it.originalUrl ?? it.thumbnailUrl ?? "");
+      return { id, url, fileName: it.fileName ?? undefined };
+    });
+  }, [data?.content, thumbnailLoaded]);
 
-    try {
-      setIsSaving(true);
-      const idForApi = Number.isFinite(Number(archiveId))
-        ? Number(archiveId)
-        : String(archiveId);
+  // thumbnailUrl 백그라운드 프리로드 (3초마다 재시도)
+  useEffect(() => {
+    if (!data?.content) return;
 
-      await updateGalleryTitleApi(idForApi, { title: nextName });
+    const tryLoadThumbnails = () => {
+      data.content.forEach((item: any) => {
+        const id = String(item.id ?? item.fileId);
+        const thumbnailUrl = item.thumbnailUrl;
 
-      // 성공 시 목록 새로고침
-      await loadServerPage(1);
-    } catch (err: any) {
-      alert(
-        "저장 실패: " +
-          (err?.response?.data?.message ?? err?.message ?? "서버 오류")
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  };
+        if (!thumbnailUrl || thumbnailLoaded[id]) return;
 
-  const currentPhotos = photos;
-
-  // 파일 입력 트리거
-  const onClickAddPhotos = () => {
-    fileInputRef.current?.click();
-  };
-
-  const onFilesSelectedForRegister = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const fileList = e.currentTarget.files;
-    if (!fileList || fileList.length === 0) return;
-
-    const files = Array.from(fileList).slice(0, MAX_UPLOAD);
-    if (files.length > MAX_UPLOAD) {
-      alert(
-        `한 번에 최대 ${MAX_UPLOAD}장만 업로드할 수 있습니다. 처음 ${MAX_UPLOAD}장만 처리됩니다.`
-      );
-    }
-
-    if (!archiveId) {
-      alert("아카이브 정보가 없습니다.");
-      e.currentTarget.value = "";
-      return;
-    }
-
-    setIsLoading(true);
-    setLoadError(null);
-
-    try {
-      // 1) 병렬 업로드
-      const uploadResults = await uploadFiles({
-        files,
-        mediaRole: MediaRole.CONTENT,
+        const img = new Image();
+        img.onload = () => {
+          setThumbnailLoaded((prev) => ({ ...prev, [id]: true }));
+        };
+        img.src = thumbnailUrl;
       });
+    };
 
-      if (!uploadResults) {
-        throw new Error(
-          "파일 업로드에 실패했습니다. 잠시 후 다시 시도해주세요."
-        );
-      }
+    // 즉시 시도
+    tryLoadThumbnails();
 
-      const newItems = (uploadResults as FileCompleteResponse[]).map((r) => ({
-        id: `tmp-${r.fileId ?? Math.random().toString(36).slice(2)}`,
-        url: r.cdnUrl ?? "",
-        fileName: r.filename ?? "",
-        isNew: true, // 새 항목 플래그
-      }));
+    // 로드 안 된 썸네일이 있으면 3초마다 재시도
+    const hasPending = data.content.some((item: any) => {
+      const id = String(item.id ?? item.fileId);
+      return item.thumbnailUrl && !thumbnailLoaded[id];
+    });
 
-      // 옵티미스틱으로 UI에 즉시 반영
-      setPhotos((prev) => [...newItems, ...prev]);
-
-      // 2) 업로드 응답에서 fileId 추출
-      const fileIds = (uploadResults as FileCompleteResponse[])
-        .map((r) => {
-          return typeof r.fileId === "number" ? r.fileId : NaN;
-        })
-        .filter((n): n is number => Number.isFinite(n)); // 타입 가드로 number[] 보장
-
-      if (fileIds.length === 0) {
-        throw new Error("서버에서 유효한 fileId를 받지 못했습니다.");
-      }
-
-      // 3) 갤러리 등록 API 호출
-      await registerGalleryApi(archiveId, { fileIds });
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-
-      // 4) 성공 처리: 갤러리 재로딩
-      await loadServerPage(1);
-    } catch (err: any) {
-      console.error("업로드/등록 실패:", err);
-      alert(
-        err?.response?.data?.message ??
-          err?.message ??
-          "이미지 업로드 또는 등록 중 오류가 발생했습니다."
-      );
-    } finally {
-      setIsLoading(false);
-      // input 초기화
-      e.currentTarget.value = "";
+    if (hasPending) {
+      const interval = setInterval(tryLoadThumbnails, 3000);
+      return () => clearInterval(interval);
     }
+  }, [data?.content, thumbnailLoaded]);
+
+  const totalElements = Number(data?.page?.totalElements ?? photos.length);
+  const totalPages = Math.max(1, Math.ceil(totalElements / PER_PAGE));
+
+  // EditableTitle 초기값 동기화 (첫 로드 시만)
+  useEffect(() => {
+    if (data?.title && title === "갤러리명 (사용자 지정)") {
+      setTitle(data.title);
+    }
+  }, [data?.title]);
+
+  // 페이지 변경 핸들러
+  const loadPage = (p: number) => {
+    const next = Math.max(1, Math.min(totalPages, p));
+    setSearchParams({ page: String(next) });
   };
 
   // 체크 토글
@@ -174,13 +113,27 @@ export default function Gallery() {
     setCheckedMap((prev) => ({ ...prev, [id]: checked }));
   };
 
-  // 체크된 id 배열
   const checkedIds = useMemo(
     () => Object.keys(checkedMap).filter((k) => checkedMap[k]),
     [checkedMap]
   );
 
-  // 삭제
+  // 제목 저장 (patch)
+  const handleSaveName = async (nextName: string) => {
+    setTitle(nextName);
+    if (!archiveId) return;
+
+    try {
+      await updateGalleryTitle({
+        archiveId,
+        title: nextName,
+      });
+    } catch (e) {
+      console.error("제목 수정 실패:", e);
+    }
+  };
+
+  // 삭제 처리
   const handleDeleteSelected = async () => {
     if (checkedIds.length === 0) {
       alert("삭제할 사진을 선택하세요.");
@@ -192,201 +145,112 @@ export default function Gallery() {
       return;
     }
 
-    setIsLoading(true);
-    const prevPhotos = photos;
-    const prevTotal = totalElements;
-    const prevPage = page;
-
     try {
-      // 1) 서버로 보낼 numericIds 계산
-      const idsToDelete = checkedIds.map((id) => {
-        const num = Number(id);
-        return Number.isNaN(num) ? id : num;
-      });
-      const numericIds = idsToDelete
-        .map((x) => (typeof x === "number" ? x : Number(x)))
-        .filter((v) => !Number.isNaN(v)) as number[];
+      const galleryIds = checkedIds
+        .map((id) => Number(id))
+        .filter((n) => Number.isFinite(n));
 
-      // 2) UI 즉시 반영
-      setPhotos((prev) =>
-        prev.filter((p) => {
-          if (numericIds.length > 0 && numericIds.includes(Number(p.id)))
-            return false;
-          if (checkedIds.includes(p.id)) return false;
-          return true;
-        })
-      );
-
-      // 2.1) 클라이언트에서 기대되는 total / totalPages 계산
-      const expectedTotal = Math.max(0, totalElements - checkedIds.length);
-      const expectedTotalPages = Math.max(
-        1,
-        Math.ceil(expectedTotal / PER_PAGE)
-      );
-
-      // 3) 서버 삭제 호출
-      if (numericIds.length > 0) {
-        await deleteGalleryApi(archiveId, { galleryIds: numericIds });
-      }
-
-      // 4) 보정할 targetPage 결정 및 상태 먼저 반영
-      const targetPage = page > expectedTotalPages ? expectedTotalPages : page;
-      setPage(targetPage);
-
-      // 5) 안전 로드 함수: PAGE_NOT_FOUND / 404 나오면 이전 페이지로 내려가 재시도
-      const safeLoad = async (p: number): Promise<boolean> => {
-        try {
-          // loadServerPage가 내부에서 예외를 throw 하면 catch로 옴
-          await loadServerPage(p);
-          return true;
-        } catch (err: any) {
-          const errCode =
-            err?.response?.data?.error ??
-            err?.response?.data?.status ??
-            err?.message;
-          const statusCode = err?.response?.status;
-
-          // PAGE_NOT_FOUND 또는 HTTP 404 처리: 이전 페이지로 내려가 재시도
-          if (errCode === "PAGE_NOT_FOUND" || statusCode === 404) {
-            if (p > 1) {
-              return await safeLoad(p - 1);
-            } else {
-              // 더 내려갈 곳 없으면 1페이지 시도
-              try {
-                await loadServerPage(1);
-                setPage(1);
-                return true;
-              } catch (innerErr) {
-                console.error("safeLoad: 1페이지 로드 실패:", innerErr);
-                return false;
-              }
-            }
-          }
-
-          // 그 외 에러: 로깅 후 false 반환 (호출자에서 처리)
-          console.error("safeLoad non-PAGE_NOT_FOUND error:", err);
-          return false;
-        }
-      };
-
-      // 6) 호출: targetPage로 안전 로드 시도
-      const loadOk = await safeLoad(targetPage);
-      if (!loadOk) {
-        // 안전 로드 실패 시 롤백
-        setPhotos(prevPhotos);
-        setTotalElements(prevTotal);
-        setPage(prevPage);
-        alert(
-          "목록을 갱신하는 동안 문제가 발생했습니다. 새로고침 후 다시 시도해주세요."
-        );
-        return;
-      }
-
-      // 7) 체크맵에서 삭제된 id 제거
-      setCheckedMap((prev) => {
-        const next = { ...prev };
-        checkedIds.forEach((cid) => delete next[cid]);
-        return next;
+      await deleteGallery({
+        archiveId,
+        galleryIds,
       });
 
+      setCheckedMap({});
       setIsEditing(false);
-    } catch (err: any) {
-      console.error("갤러리 삭제 실패:", err);
-      // 롤백
-      setPhotos(prevPhotos);
-      setTotalElements(prevTotal);
-      setPage(prevPage);
 
-      alert(
-        err?.response?.data?.message ??
-          err?.message ??
-          "삭제 중 오류가 발생했습니다."
-      );
-
-      try {
-        await loadServerPage(prevPage);
-      } catch (e) {
-        console.error("복구 시 목록 재조회 실패:", e);
+      // 삭제 후 현재 페이지가 유효한지 체크
+      const newTotal = totalElements - galleryIds.length;
+      const newTotalPages = Math.max(1, Math.ceil(newTotal / PER_PAGE));
+      if (page > newTotalPages) {
+        setSearchParams({ page: "1" });
       }
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      console.error("갤러리 삭제 실패:", err);
+      alert("삭제 중 오류가 발생했습니다.");
     }
   };
 
-  // 페이지 이동
-  const loadPage = (p: number) => {
-    const next = Math.max(1, Math.min(totalPages || 1, p));
-    setPage(next);
+  // 파일 입력 트리거
+  const onClickAddPhotos = () => {
+    fileInputRef.current?.click();
   };
 
-  // 컴포넌트 언마운트 시 생성한 blob URL 해제
-  useEffect(() => {
-    return () => {
-      createdUrlsRef.current.forEach((u) => {
-        try {
-          URL.revokeObjectURL(u);
-        } catch {}
-      });
-      createdUrlsRef.current.clear();
-      controllerRef.current?.abort();
-    };
-  }, []);
+  const onFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.currentTarget.files;
+    if (!fileList || fileList.length === 0) return;
 
-  const loadServerPage = async (page1: number): Promise<GalleryResp | null> => {
-    if (!archiveId) return null;
-    controllerRef.current?.abort();
-    controllerRef.current = new AbortController();
-    setIsLoading(true);
-    setLoadError(null);
+    const files = Array.from(fileList).slice(0, MAX_UPLOAD);
+    if (files.length > MAX_UPLOAD) {
+      alert(`한 번에 최대 ${MAX_UPLOAD}장만 업로드할 수 있습니다.`);
+    }
+    if (!archiveId) {
+      alert("아카이브 정보가 없습니다.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     try {
-      const resp = await fetchGallery(
-        { archiveId, page: page1 - 1, size: PER_PAGE },
-        controllerRef.current.signal
-      );
+      // 1) 파일 업로드
+      const uploadResults = await uploadFiles({
+        files,
+        mediaRole: "CONTENT" as any,
+      });
+      if (!uploadResults) throw new Error("파일 업로드 실패");
 
-      if (resp.title) setTitle(resp.title);
+      // 2) fileIds 추출
+      const fileIds = uploadResults
+        .map((r) =>
+          typeof r.fileId === "number" ? r.fileId : Number(r.fileId)
+        )
+        .filter((id) => Number.isFinite(id));
 
-      const items: Photo[] = (resp.content ?? []).map((it: any) => ({
-        id: String(it.id ?? it.fileId ?? uuidv4()),
-        url: it.thumbnailUrl ?? (it.url as string | undefined) ?? "",
-        fileName: it.fileName ?? it.name ?? undefined,
-        createdAt: it.createdAt ?? it.lastModifiedAt ?? undefined,
-        isNew: false,
-      }));
+      if (fileIds.length === 0) throw new Error("유효한 fileId가 없습니다.");
 
-      // 서버값 기준으로 상태 업데이트
-      setPhotos(items);
-      const totalPagesFromResp = Number(resp.page?.totalPages ?? 1);
-      const totalElementsFromResp = Number(
-        resp.page?.totalElements ?? items.length
-      );
-      setTotalPages(totalPagesFromResp);
-      setTotalElements(totalElementsFromResp);
-
-      return resp as GalleryResp;
+      // 3) 갤러리에 등록 (invalidateQueries 자동 처리)
+      await addGallery({
+        archiveId,
+        fileIds,
+      });
     } catch (err: any) {
-      if (err?.name === "CanceledError" || err?.message === "canceled") {
-        return null;
-      }
-      console.error("fetchGallery error:", err);
-      setLoadError(err?.message ?? "갤러리 로드 실패");
-      return null;
+      console.error("업로드/등록 실패:", err);
+      alert(err?.message ?? "이미지 업로드 중 오류가 발생했습니다.");
     } finally {
-      setIsLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
-  // archiveId나 page가 바뀌면 서버 호출
-  useEffect(() => {
-    loadServerPage(page);
-  }, [archiveId, page]);
 
-  // 빈 상태 렌더링
+  // 로딩 UI
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center">
+        <div className="w-310">
+          <div className="my-15">
+            <div className="h-10 w-full bg-gray-200 rounded animate-pulse" />
+          </div>
+          <div className="mt-5 mb-15">
+            <div className="grid grid-cols-3 gap-x-20 gap-y-15 w-310">
+              {Array.from({ length: PER_PAGE }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-90 h-75 bg-gray-200 rounded animate-pulse"
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 에러 UI
+  if (isError) return <div>갤러리 로드 중 오류가 발생했습니다.</div>;
+
+  // 빈 상태 UI
   if (photos.length === 0) {
     return (
       <div className="flex flex-col items-center">
         <div className="w-310">
-          <div className="my-15 ">
+          <div className="my-15">
             <EditableTitle
               value={title}
               onSave={handleSaveName}
@@ -401,13 +265,12 @@ export default function Gallery() {
             startIcon={<Camera className="w-6 h-6 text-color-high" />}
             className="w-full h-135"
           />
-          {/* 숨겨진 파일 input */}
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
             multiple
-            onChange={onFilesSelectedForRegister}
+            onChange={onFilesSelected}
             className="hidden"
           />
         </div>
@@ -415,29 +278,29 @@ export default function Gallery() {
     );
   }
 
-  // non-empty (사진이 있을 때)
+  // 사진 있을 때 UI
   return (
     <div className="flex flex-col items-center">
       <div className="w-310">
         <div className="my-15">
           <EditableTitle value={title} onSave={handleSaveName} />
         </div>
-        {photos.length > 0}
         <div className="flex justify-end gap-5 mb-10">
           {!isEditing && (
             <BtnIcon
               onClick={onClickAddPhotos}
               startIcon={<Camera className="size-6 text-color-high" />}
-              disabled={isUploading}
-              className={isUploading ? "opacity-60 cursor-not-allowed" : ""}
+              disabled={isAdding}
+              className={isAdding ? "opacity-60 cursor-not-allowed" : ""}
             >
-              {isUploading ? "업로드 중..." : "사진 추가"}
+              {isAdding ? "업로드 중..." : "사진 추가"}
             </BtnIcon>
           )}
           {isEditing && (
             <BtnIcon
               onClick={handleDeleteSelected}
               startIcon={<TrashIcon className="w-6 h-6 text-color-high" />}
+              disabled={isDeleting}
             >
               삭제하기
             </BtnIcon>
@@ -445,14 +308,13 @@ export default function Gallery() {
           <BtnIcon
             onClick={() => {
               setIsEditing((s) => {
-                const next = !s;
-                if (!next) setCheckedMap({});
-                return next;
+                if (s) setCheckedMap({});
+                return !s;
               });
             }}
             startIcon={
               isEditing ? (
-                <X className="w-6 h-6 text-color-high" />
+                <X className="size-6 text-color-high" />
               ) : (
                 <Pencil className="w-[16.5px] h-[17.5px] text-color-high" />
               )
@@ -463,21 +325,21 @@ export default function Gallery() {
         </div>
       </div>
 
-      {/* 이미지 그리드 (3열 x 3행) */}
+      {/* 이미지 그리드 */}
       <div className="grid grid-cols-3 gap-x-20 gap-y-15 mb-15 w-310">
-        {currentPhotos.map((p) => (
+        {photos.map((p) => (
           <div key={p.id} className="relative group">
-            <div className="w-90 h-75 rounded-lg flex items-center justify-center overflow-hidden">
-              <ImageWithSkeleton
-                src={p.url}
-                alt={p.fileName ?? "photo"}
-                className="w-full h-full"
-                maxRetries={2}
-                retryIntervalMs={700}
-              />
+            <div className="w-90 h-75 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+              {p.url ? (
+                <img
+                  src={p.url}
+                  alt={p.fileName ?? "photo"}
+                  className="object-cover w-full h-full"
+                />
+              ) : (
+                <div className="w-full h-full bg-gray-200 animate-pulse" />
+              )}
             </div>
-
-            {/* 편집 체크박스*/}
             {isEditing && (
               <label className="absolute left-3 top-3">
                 <input
@@ -485,35 +347,31 @@ export default function Gallery() {
                   checked={!!checkedMap[p.id]}
                   onChange={(e) => toggleCheck(p.id, e.target.checked)}
                   className="sr-only"
-                  aria-label={checkedMap[p.id] ? "선택 해제" : "선택"}
                 />
-                <div>
-                  <CheckboxIcon checked={!!checkedMap[p.id]} size={24} />
-                </div>
+                <CheckboxIcon checked={!!checkedMap[p.id]} size={24} />
               </label>
             )}
           </div>
         ))}
       </div>
 
-      {/* 페이징 & 상태 표시 */}
+      {/* 페이지네이션 */}
       <div className="flex justify-center mb-12">
         <Pagination
           totalItems={totalElements}
           pageSize={PER_PAGE}
           visiblePages={5}
-          currentPage={Number(page)}
-          onChange={(p) => loadPage(p)}
+          currentPage={page}
+          onChange={loadPage}
         />
       </div>
 
-      {/* 숨겨진 파일 input */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
         multiple
-        onChange={onFilesSelectedForRegister}
+        onChange={onFilesSelected}
         className="hidden"
       />
     </div>

@@ -124,7 +124,7 @@ const DiaryWritePage = () => {
       },
       {
         onSuccess: () => {
-          navigate(`/archive/${archiveId}/diary`);
+          navigate(-1);
         },
       }
     );

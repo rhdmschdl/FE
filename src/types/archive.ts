@@ -9,10 +9,9 @@ export enum Visibility {
 
 export enum Badge {
   NEWBIE = "NEWBIE",
-  BEGINNER = "BEGINNER",
-  INTERMEDIATE = "INTERMEDIATE",
-  ADVANCED = "ADVANCED",
-  EXPERT = "EXPERT",
+  FANS = "FANS",
+  SUPPORTER = "SUPPORTER",
+  STAN = "STAN",
   MASTER = "MASTER",
 }
 
