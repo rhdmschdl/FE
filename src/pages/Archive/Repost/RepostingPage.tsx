@@ -66,6 +66,14 @@ export default function RepostingPage() {
   // API 호출용 0-based page
   const page0 = Math.max(0, currentPage - 1);
 
+  // activeTabId가 tabsLocal에 존재하는 유효한 값인지 확인
+  // 삭제된 탭 ID로 요청하는 것을 방지
+  const isActiveTabValid = tabsLocal.some(
+    (t) => String(t.id) === String(activeTabId)
+  );
+  const validTabId =
+    activeTabId && isActiveTabValid ? Number(activeTabId) : undefined;
+
   const {
     data: repostData,
     isLoading,
@@ -77,11 +85,7 @@ export default function RepostingPage() {
     size: PAGE_SIZE,
     sort: "createdAt",
     direction: "DESC",
-    tabId: activeTabId
-      ? typeof activeTabId === "number"
-        ? Number(activeTabId)
-        : Number(activeTabId)
-      : undefined,
+    tabId: validTabId,
   });
 
   const createRepost = useCreateRepost();
@@ -107,8 +111,11 @@ export default function RepostingPage() {
       setTitle(repostData.title);
     }
 
-    // activeTabId 초기화: 기존 activeTabId 유지 우선, 없으면 첫 탭
-    if (!activeTabId && tabs.length > 0) {
+    // activeTabId 초기화: 유효한 탭인지 확인 후 설정
+    const isActiveTabValid = tabs.some(
+      (t) => String(t.id) === String(activeTabId)
+    );
+    if ((!activeTabId || !isActiveTabValid) && tabs.length > 0) {
       setActiveTabId(tabs[0].id);
       setTabPageMap((m) => ({ ...m, [String(tabs[0].id)]: 1 }));
     }
@@ -246,13 +253,19 @@ export default function RepostingPage() {
   const handleAddTab = async () => {
     if (!archiveId) return;
     if (tabsLocal.length >= MAX_TABS) return;
+
+    // 탭이 없는 경우(모든 탭 삭제 후) activeTabId가 이전 삭제된 탭 ID일 수 있으므로 초기화
+    if (tabsLocal.length === 0) {
+      setActiveTabId(null);
+    }
+
     try {
       await createRepostTab.mutateAsync({
         archiveId,
         payload: { title: "" },
       });
-
-      await refetchRepost();
+      // invalidateQueries가 자동으로 호출되어 쿼리 무효화됨
+      // useEffect에서 새 탭 목록 받아서 activeTabId 설정됨
     } catch (err) {
       console.error("탭 생성 실패:", err);
     }
@@ -269,6 +282,9 @@ export default function RepostingPage() {
       // 로컬 탭 갱신: 삭제된 탭 제거
       setTabsLocal((prev) => {
         const next = prev.filter((t) => String(t.id) !== String(tabIdStr));
+        if (next.length === 0) {
+          setIsEditMode(false); // 탭 없으면 편집 모드 종료
+        }
         return next;
       });
 
@@ -283,8 +299,8 @@ export default function RepostingPage() {
         return remaining.length > 0 ? String(remaining[0].id) : null;
       });
 
-      // 서버 재조회 또는 캐시 무효화
-      await refetchRepost();
+      // activeTabId 상태 변경 시 queryKey가 바뀌어 자동으로 refetch됨
+      // refetchRepost()를 직접 호출하면 이전 tabId로 요청되어 404 발생
     } catch (err) {
       console.error("탭 삭제 실패:", err);
       alert("탭 삭제 중 오류가 발생했습니다.");
