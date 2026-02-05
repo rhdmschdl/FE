@@ -149,7 +149,7 @@ export default function Tabs({
                       isActive ? "text-color-highest" : "text-color-high"
                     }`}
                   >
-                    {it.title || "무제 탭"}
+                    {it.title}
                   </span>
                 )}
               </button>

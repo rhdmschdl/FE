@@ -310,6 +310,21 @@ export default function RepostingPage() {
   // 탭 이름 변경 -> 서버 호출
   const handleRenameTab = async (idStr: string, nextTitle: string) => {
     const id = Number(idStr);
+    const prevTitle =
+      tabsLocal.find((t) => String(t.id) === String(id))?.title ?? "";
+
+    // 1) 클라이언트 사전 검증: 빈문자열이면 서버 호출 없이 경고 후 롤백
+    if (!nextTitle || nextTitle.trim() === "") {
+      window.alert("탭 제목은 필수입니다.");
+      // 로컬 UI가 이미 편집용으로 바뀌어 있다면 이전 제목으로 복원
+      setTabsLocal((p) =>
+        p.map((t) =>
+          String(t.id) === String(id) ? { ...t, title: prevTitle } : t
+        )
+      );
+      return;
+    }
+
     setTabsLocal((p) =>
       p.map((t) =>
         String(t.id) === String(idStr) ? { ...t, title: nextTitle } : t
