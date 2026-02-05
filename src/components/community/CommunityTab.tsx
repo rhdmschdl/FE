@@ -27,7 +27,7 @@ export default function CommunityTab({
   hideAll = false,
 }: CommunityTabProps) {
   const effectiveOptions = hideAll
-    ? options.filter((o) => o.value !== "all")
+    ? options.filter((o) => o.label !== "전체")
     : options;
 
   return (
