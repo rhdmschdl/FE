@@ -10,6 +10,7 @@ type UseEventSourceOptions<T> = {
   onOpen?: () => void;
   reconnectOnError?: boolean;
   reconnectInterval?: number;
+  maxRetries?: number;
   parseMessage?: (event: MessageEvent) => T;
   eventTypes?: string[];
 };
@@ -33,12 +34,14 @@ export const useEventSource = <T = unknown>(
     onOpen,
     reconnectOnError = true,
     reconnectInterval = 3000,
+    maxRetries = 5,
     parseMessage = (event) => JSON.parse(event.data) as T,
     eventTypes = [],
   } = options;
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
+  const retryCountRef = useRef(0);
   const [status, setStatus] = useState<SseConnectionStatus>(
     SseConnectionStatus.DISCONNECTED
   );
@@ -50,6 +53,7 @@ export const useEventSource = <T = unknown>(
     withCredentials,
     reconnectOnError,
     reconnectInterval,
+    maxRetries,
     onMessage,
     onError,
     onOpen,
@@ -64,6 +68,7 @@ export const useEventSource = <T = unknown>(
       withCredentials,
       reconnectOnError,
       reconnectInterval,
+      maxRetries,
       onMessage,
       onError,
       onOpen,
@@ -94,13 +99,13 @@ export const useEventSource = <T = unknown>(
     disconnectRef.current();
     setStatus(SseConnectionStatus.CONNECTING);
 
-    const { url, withCredentials, reconnectOnError, reconnectInterval, eventTypes } =
-      optionsRef.current;
+    const { url, withCredentials, eventTypes } = optionsRef.current;
 
     const eventSource = new EventSource(url, { withCredentials });
     eventSourceRef.current = eventSource;
 
     eventSource.onopen = () => {
+      retryCountRef.current = 0;
       setStatus(SseConnectionStatus.CONNECTED);
       optionsRef.current.onOpen?.();
     };
@@ -128,18 +133,26 @@ export const useEventSource = <T = unknown>(
       setStatus(SseConnectionStatus.ERROR);
       optionsRef.current.onError?.(error);
 
-      if (reconnectOnError) {
+      const { reconnectOnError, reconnectInterval, maxRetries } =
+        optionsRef.current;
+
+      if (reconnectOnError && retryCountRef.current < maxRetries) {
+        retryCountRef.current += 1;
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
         }
         reconnectTimeoutRef.current = window.setTimeout(() => {
           connectRef.current();
         }, reconnectInterval);
+      } else {
+        disconnectRef.current();
       }
     };
   };
 
   useEffect(() => {
+    retryCountRef.current = 0;
+
     if (enabled) {
       connectRef.current();
     } else {

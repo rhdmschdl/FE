@@ -47,16 +47,17 @@ const DiaryImage = ({
   return (
     <div className="w-full mb-6">
       <div
-        className="relative w-full h-[433px] flex justify-center"
+        className="relative w-full h-[433px] flex justify-center overflow-hidden"
         style={{
-          backgroundImage: `url(${image})`,
-          backgroundSize: "cover",
-          backgroundPosition: "bottom center",
-          backgroundRepeat: "no-repeat",
-          width: "100vw",
-          marginLeft: "calc(-50vw + 50%)",
+          width: "max(100vw, 1240px)",
+          marginLeft: "calc(-1 * max(50vw, 620px) + 50%)",
         }}
       >
+        <img
+          src={image}
+          alt=""
+          className="absolute inset-0 w-full h-full object-fill pointer-events-none"
+        />
         <div className="absolute top-0 w-310 h-full">
           <div
             className="flex gap-15 overflow-x-auto overflow-y-hidden h-full pb-4 scroll-smooth scrollbar-hide"

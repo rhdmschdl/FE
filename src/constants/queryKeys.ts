@@ -34,4 +34,8 @@ export const queryKeys = {
     me: () => ["user", "me"] as const,
     detail: (userId: number) => ["user", "detail", userId] as const,
   },
+  repost: {
+    all: ["repost"] as const,
+    list: (archiveId: string | number) => ["repost", archiveId] as const,
+  },
 } as const;

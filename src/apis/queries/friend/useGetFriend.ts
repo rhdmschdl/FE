@@ -27,7 +27,7 @@ export const useGetStatusFriend = (
   params: GetStatusFriendRequest & { refetchInterval?: number }
 ) => {
   const { refetchInterval, ...queryParams } = params;
-  return useQuery<GetStatusFriendResponse>({
+  return useQuery<GetStatusFriendResponse | null>({
     queryKey: queryKeys.friend.status(queryParams.friendId),
     queryFn: () => getStatusFriend(queryParams),
     enabled: !!queryParams.friendId,

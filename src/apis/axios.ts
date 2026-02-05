@@ -36,4 +36,5 @@ axiosInstance.interceptors.response.use(
   }
 );
 
+export { AxiosError };
 export default axiosInstance;

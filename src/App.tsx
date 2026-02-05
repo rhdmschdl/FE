@@ -3,13 +3,16 @@ import "./App.css";
 import { RouterProvider } from "react-router-dom";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import router from "./router/router";
+import SseProvider from "./providers/SseProvider";
 
 const queryClient = new QueryClient();
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <SseProvider>
+        <RouterProvider router={router} />
+      </SseProvider>
 
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>

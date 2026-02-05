@@ -14,7 +14,6 @@ import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 const Home = () => {
-
   const navigate = useNavigate();
 
   const sampleArchiveData = archiveDataMock.slice(0, 2);
@@ -40,42 +39,54 @@ const Home = () => {
   };
   const { data: hotFeedData } = useQuery({
     queryKey: ["hotFeed"],
-    queryFn: () => GetArchiveFeed({
-      page: 0,
-      size: 3,
-      sort: Sort.HOT_SCORE,
-      direction: "DESC",
-    })
+    queryFn: () =>
+      GetArchiveFeed({
+        page: 0,
+        size: 3,
+        sort: Sort.HOT_SCORE,
+        direction: "DESC",
+      }),
   });
   const { data: hotCommunityData } = useQuery({
     queryKey: ["hotCommunity"],
-    queryFn: () => getPosts({
-      page: 0,
-      size: 3,
-      sortBy: "hotScore",
-      direction: "DESC",
-    })
+    queryFn: () =>
+      getPosts({
+        page: 0,
+        size: 3,
+        sortBy: "hotScore",
+        direction: "DESC",
+      }),
   });
 
   const handleShare = useCallback(async (postId: number | string) => {
-    const url = `${window.location.origin}/community/${postId}`;
+    const SHARE_BASE = "https://deokive.hooby-server.com/share/posts";
+    const id = encodeURIComponent(String(postId));
+    const url = `${SHARE_BASE}/${id}`;
 
     try {
+      // 클립보드 API 사용 시도
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(url);
       } else {
+        // 폴백: textarea를 만들어 복사
         const textarea = document.createElement("textarea");
         textarea.value = url;
+        textarea.setAttribute("readonly", "");
         textarea.style.position = "fixed";
         textarea.style.left = "-9999px";
         document.body.appendChild(textarea);
         textarea.select();
+        try {
+          document.execCommand("copy");
+        } catch {}
         document.body.removeChild(textarea);
       }
-      window.alert("URL을 복사했습니다.");
+
+      // 기본 브라우저 알림 사용
+      window.alert("공유 URL이 클립보드에 복사되었습니다.");
     } catch (err) {
       console.error("복사 실패:", err);
-      window.alert("URL 복사에 실패했습니다.");
+      window.alert("URL 복사에 실패했습니다. 다시 시도해 주세요.");
     }
   }, []);
 
@@ -153,7 +164,10 @@ const Home = () => {
                   key={hotCommunity.postId}
                   title={hotCommunity.title}
                   img={hotCommunity.thumbnailUrl ?? undefined}
-                  categoryLabel={mapCategoryToLabel(hotCommunity.category) ?? hotCommunity.category}
+                  categoryLabel={
+                    mapCategoryToLabel(hotCommunity.category) ??
+                    hotCommunity.category
+                  }
                   categoryValue={hotCommunity.category}
                   content={hotCommunity.summary ?? "게시글 내용"}
                   onClick={() => {

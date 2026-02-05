@@ -118,7 +118,7 @@ export default function VisitProfilePage() {
                 disabled={buttonConfig.disabled}
                 className={
                   buttonConfig.variant === "gray" && !isPendingRequest
-                    ? "opacity-80"
+                    ? "w-30 opacity-80"
                     : "w-30 border-2 border-border-low"
                 }
                 startIcon={buttonConfig.icon}

@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/oembed",
+      "destination": "https://deokive.hooby-server.com/oembed"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

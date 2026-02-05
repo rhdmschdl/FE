@@ -56,7 +56,7 @@ export default function TicketCard({
         <TicketSvg
           width={430}
           height={240}
-          className="absolute inset-0 duration-50 ease-in-out"
+          className="absolute inset-0"
           mainColor={checked ? "#A2AAB2" : "#CBD5DF"}
           side={side}
         />

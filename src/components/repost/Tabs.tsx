@@ -159,7 +159,6 @@ export default function Tabs({
 
         {/* 삭제 버튼 */}
         {showRemoveButtons &&
-          items.length > 1 &&
           items.map((it, idx) => {
             const left = idx * (tabWidth - overlapOffset);
             return (

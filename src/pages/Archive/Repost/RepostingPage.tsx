@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
-import dayjs from "dayjs";
+import { useParams } from "react-router-dom";
 import EditableTitle from "@/components/common/EditableTitle";
 import Tabs from "@/components/repost/Tabs";
 import type { TabItem } from "@/components/repost/Tabs";
@@ -12,137 +12,308 @@ import CheckboxIcon from "@/assets/icon/CheckboxIcon";
 import { Link as LinkIcon, Pencil, X } from "lucide-react";
 import TrashIcon from "@/assets/icon/TrashIcon";
 
-type RepostItem = {
+import { useGetRepost } from "@/apis/queries/repost/useGetRepost";
+import { useCreateRepost } from "@/apis/mutations/repost/useCreateRepost";
+import { useCreateRepostTab } from "@/apis/mutations/repost/useCreateRepostTab";
+import { useUpdateRepostBookTitle } from "@/apis/mutations/repost/useUpdateRepostBookTitle";
+import { useUpdateRepostTabTitle } from "@/apis/mutations/repost/useUpdateRepostTabTItle";
+import { useDeleteRepost } from "@/apis/mutations/repost/useDeleteRepost";
+import { useDeleteRepostTab } from "@/apis/mutations/repost/useDeleteRepostTab";
+
+type RepostItemLocal = {
   id: string;
+  repostId?: number;
   url: string;
   title?: string;
   image?: string | null;
+  status?: string;
   createdAt?: string;
 };
-
-type TabWithItems = {
-  id: string;
-  title: string;
-  items: RepostItem[];
-};
-
 const MAX_TABS = 10;
 const PAGE_SIZE = 9;
 
 export default function RepostingPage() {
+  const { archiveId: archiveIdParam } = useParams<{ archiveId: string }>();
+  const archiveId = archiveIdParam ?? "";
   const [title, setTitle] = useState<string>(
     "리포스팅 기록 이름 (사용자 지정)"
   );
 
-  // 샘플 탭 + 샘플 게시물 (UI 테스트용)
-  const initialTabs: TabWithItems[] = [
-    {
-      id: uuidv4(),
-      title: "기본탭",
-      items: [], // 비어있음(초기 빈 상태 확인)
-    },
-    {
-      id: uuidv4(),
-      title: "샘플탭",
-      items: Array.from({ length: 11 }).map((_, i) => ({
-        id: uuidv4(),
-        url: `https://example.com/post/${i + 1}`,
-        title: `샘플 제목 ${i + 1}`,
-        image: null,
-        createdAt: dayjs().subtract(i, "day").toISOString(),
-      })),
-    },
-  ];
-
-  const [tabs, setTabs] = useState<TabWithItems[]>(initialTabs);
-  const [activeTabId, setActiveTabId] = useState<string>(initialTabs[0].id);
-
   // UI 상태
-  const [isEditMode, setIsEditMode] = useState(false); // 편집모드 토글 (편집하기/취소)
-  const [showAttachUnderButton, setShowAttachUnderButton] = useState(false); // 링크첨부 버튼 밑 박스 표시
-  const [checkedMap, setCheckedMap] = useState<Record<string, boolean>>({}); // 게시물 체크
-  const [tabPageMap, setTabPageMap] = useState<Record<string, number>>({}); // 탭별 페이지 상태 (1-based)
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [showAttachUnderButton, setShowAttachUnderButton] = useState(false);
+  const [checkedMap, setCheckedMap] = useState<Record<string, boolean>>({});
+  const [tabPageMap, setTabPageMap] = useState<Record<string, number>>({}); // 1-based
 
-  const handleSaveName = (nextName: string) => {
-    setTitle(nextName);
-    // TODO: API 연동 시 서버에 리포스팅 기록명 저장
+  // 서버 데이터: activeTabId, tabs list, and content
+  // 기본 activeTabId는 undefined -> 서버에서 받은 첫 탭 사용
+  const [activeTabId, setActiveTabId] = useState<string | number | null>(null);
+  const [tabsLocal, setTabsLocal] = useState<
+    Array<{ id: number | string; title: string }>
+  >([]);
+
+  const [thumbnailLoaded, setThumbnailLoaded] = useState<
+    Record<string, boolean>
+  >({});
+
+  // React Query 훅들
+  // content 조회는 activeTabId + page(0-based)
+  const rawPage = tabPageMap[String(activeTabId ?? "")]; // undefined | number | string
+  const currentPageNum = Number(rawPage ?? 1);
+  const currentPage =
+    Number.isFinite(currentPageNum) && currentPageNum > 0 ? currentPageNum : 1;
+
+  // API 호출용 0-based page
+  const page0 = Math.max(0, currentPage - 1);
+
+  const {
+    data: repostData,
+    isLoading,
+    isError,
+    refetch: refetchRepost,
+  } = useGetRepost({
+    archiveId,
+    page: page0,
+    size: PAGE_SIZE,
+    sort: "createdAt",
+    direction: "DESC",
+    tabId: activeTabId
+      ? typeof activeTabId === "number"
+        ? Number(activeTabId)
+        : Number(activeTabId)
+      : undefined,
+  });
+
+  const createRepost = useCreateRepost();
+  const createRepostTab = useCreateRepostTab();
+  const updateRepostTabTitle = useUpdateRepostTabTitle();
+  const updateRepostBookTitle = useUpdateRepostBookTitle();
+  const deleteRepost = useDeleteRepost();
+  const deleteRepostTab = useDeleteRepostTab();
+
+  // 서버에서 받은 탭/제목 초기화
+  useEffect(() => {
+    if (!repostData) return;
+
+    // repostData.tab은 서버에서 내려온 탭 목록(각 tab.id, title, repostBookId 등)
+    const tabs = (repostData.tab ?? []).map((t) => ({
+      id: t.id,
+      title: t.title ?? "무제",
+    }));
+    setTabsLocal(tabs);
+
+    // 북 제목 동기화(초기)
+    if (repostData.title) {
+      setTitle(repostData.title);
+    }
+
+    // activeTabId 초기화: 기존 activeTabId 유지 우선, 없으면 첫 탭
+    if (!activeTabId && tabs.length > 0) {
+      setActiveTabId(tabs[0].id);
+      setTabPageMap((m) => ({ ...m, [String(tabs[0].id)]: 1 }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repostData]);
+
+  // 서버 응답 기반 items 매핑
+  const contentItems = useMemo(() => {
+    const list = repostData?.content ?? [];
+    return list.map((c: any) => {
+      const serverId = c.id ?? c.postId;
+      const id = String(serverId ?? uuidv4()); // client key
+      return {
+        id,
+        repostId: typeof serverId === "number" ? serverId : undefined,
+        url: c.url ?? (c.postId ? String(c.postId) : ""),
+        title: c.title ?? undefined,
+        image: c.thumbnailUrl ?? null,
+        status:
+          typeof c.status === "string" ? c.status.toUpperCase() : undefined,
+        createdAt: c.createdAt,
+      } as RepostItemLocal;
+    });
+  }, [repostData?.content]);
+
+  // thumbnail preload / readiness 체크
+  useEffect(() => {
+    const content = repostData?.content;
+    if (!content || content.length === 0) return;
+
+    const tryLoadThumbnails = () => {
+      content.forEach((item: any) => {
+        const serverId = item.id ?? item.postId;
+        const id = String(serverId ?? "");
+        const thumbnailUrl: string | undefined = item.thumbnailUrl;
+        if (!thumbnailUrl) return;
+        if (thumbnailLoaded[id]) return;
+
+        const img = new Image();
+        img.onload = () => {
+          setThumbnailLoaded((prev) => ({ ...prev, [id]: true }));
+        };
+        img.onerror = () => {};
+        img.src = thumbnailUrl;
+      });
+    };
+
+    tryLoadThumbnails();
+
+    const hasPending = content.some((it: any) => {
+      const sid = String(it.id ?? it.postId ?? "");
+      return it.thumbnailUrl && !thumbnailLoaded[sid];
+    });
+
+    if (hasPending) {
+      const timer = window.setInterval(tryLoadThumbnails, 3000);
+      return () => clearInterval(timer);
+    }
+  }, [repostData?.content, thumbnailLoaded]);
+
+  // 서버가 PENDING 상태인 항목이 있으면 리프레시 폴링
+  // 폴링은 리소스 문제를 고려해 짧게(3초) 반복
+  useEffect(() => {
+    const content = repostData?.content;
+    if (!content || content.length === 0) return;
+
+    const hasPending = content.some((it: any) => {
+      const s = (it.status ?? "").toString().toUpperCase();
+      return s === "PENDING" || s === "PROCESSING";
+    });
+
+    if (!hasPending) return;
+
+    const id = window.setInterval(() => {
+      refetchRepost();
+    }, 3000);
+
+    return () => clearInterval(id);
+  }, [repostData?.content, refetchRepost]);
+
+  // 첨부(생성) 흐름: mutate 후 바로 refetch 하되, 서버가 PENDING으로 내려올 수 있으므로
+  // 폴링 효과로 스켈레톤을 표시하고 갱신되면 썸네일/타이틀 자동 치환
+  const handleAttachToTab = async (
+    tabIdStr: string,
+    payload: { url: string }
+  ) => {
+    const tabIdNum = Number(tabIdStr);
+    try {
+      // 서버에 create 요청
+      await createRepost.mutateAsync({
+        tabId: tabIdNum,
+        payload: { url: payload.url },
+      });
+      // 우선 UI: attach 폴더 닫고 페이지 1로 이동
+      setShowAttachUnderButton(false);
+      setTabPageMap((m) => ({ ...m, [String(tabIdStr)]: 1 }));
+      setCheckedMap({});
+      // 바로 서버 재조회: 서버가 PENDING으로 응답하면 폴링이 동작해 완료 시 갱신됨
+      await refetchRepost();
+    } catch (err) {
+      console.error("링크 첨부 실패:", err);
+      alert("링크 첨부 중 오류가 발생했습니다.");
+    }
   };
 
   // Helpers
   const tabItemsForTabsComponent: TabItem[] = useMemo(
-    () => tabs.map((t) => ({ id: t.id, title: t.title })),
-    [tabs]
+    () => tabsLocal.map((t) => ({ id: String(t.id), title: t.title })),
+    [tabsLocal]
   );
 
-  const activeTab = useMemo(
-    () => tabs.find((t) => t.id === activeTabId) ?? tabs[0],
-    [tabs, activeTabId]
-  );
-
-  // 탭 추가 (항상 오른쪽 끝)
-  const handleAddTab = () => {
-    if (tabs.length >= MAX_TABS) return;
-    const id = uuidv4();
-    const newTab: TabWithItems = { id, title: "", items: [] };
-    setTabs((p) => [...p, newTab]);
-    setActiveTabId(id);
+  // 탭 페이지 상태 setter
+  const setPageForActiveTab = (p: number) => {
+    if (!activeTabId) return;
+    setTabPageMap((m) => ({ ...m, [String(activeTabId)]: p }));
   };
 
-  // 탭 삭제: 탭 컨텐츠(아이템)도 같이 삭제됨
-  const handleRemoveTab = (tabId: string) => {
-    // 최소 1개 보장: 삭제 시 남은 탭이 없으면 기본 탭 생성
-    const next = tabs.filter((t) => t.id !== tabId);
-    if (next.length === 0) {
-      const id = uuidv4();
-      setTabs([{ id, title: "기본탭", items: [] }]);
-      setActiveTabId(id);
-    } else {
-      setTabs(next);
-      if (activeTabId === tabId) {
-        setActiveTabId(next[0].id);
-      }
+  // EditableTitle 저장
+  const handleSaveName = async (nextName: string) => {
+    setTitle(nextName);
+    if (!archiveId) return;
+    try {
+      await updateRepostBookTitle.mutateAsync({
+        repostBookId: archiveId,
+        payload: { title: nextName },
+      });
+
+      refetchRepost();
+    } catch (err) {
+      console.error("리포스트북 제목 수정 실패:", err);
     }
-    // 선택 초기화
-    setCheckedMap({});
   };
 
-  // 탭 이름 변경
-  const handleRenameTab = (id: string, nextTitle: string) => {
-    setTabs((p) =>
-      p.map((t) => (t.id === id ? { ...t, title: nextTitle } : t))
-    );
+  // 탭 추가
+  const handleAddTab = async () => {
+    if (!archiveId) return;
+    if (tabsLocal.length >= MAX_TABS) return;
+    try {
+      await createRepostTab.mutateAsync({
+        archiveId,
+        payload: { title: "" },
+      });
+
+      await refetchRepost();
+    } catch (err) {
+      console.error("탭 생성 실패:", err);
+    }
   };
 
-  // 링크 첨부: 현재는 로컬에 item 추가 (서버 연동 시 API 호출)
-  // LinkAttachBox의 onAttach이 호출되면 이 함수로 처리
-  const handleAttachToTab = (tabId: string, payload: { url: string }) => {
-    const newItem: RepostItem = {
-      id: uuidv4(),
-      url: payload.url,
-      title: undefined,
-      image: null,
-      createdAt: dayjs().toISOString(),
-    };
-    setTabs((prev) =>
-      prev.map((t) =>
-        t.id === tabId ? { ...t, items: [newItem, ...t.items] } : t
+  // 탭 삭제 (서버 호출)
+  const handleRemoveTab = async (tabIdStr: string) => {
+    const tabIdNum = Number(tabIdStr);
+
+    try {
+      // 서버 삭제 호출이 필요하면 호출
+      await deleteRepostTab.mutateAsync({ tabId: tabIdNum });
+
+      // 로컬 탭 갱신: 삭제된 탭 제거
+      setTabsLocal((prev) => {
+        const next = prev.filter((t) => String(t.id) !== String(tabIdStr));
+        return next;
+      });
+
+      // 체크박스 초기화
+      setCheckedMap({});
+
+      // activeTab 조정: 삭제 후 남은 탭이 있으면 첫 탭으로, 없으면 null로 두기
+      setActiveTabId(() => {
+        const remaining = tabsLocal.filter(
+          (t) => String(t.id) !== String(tabIdStr)
+        );
+        return remaining.length > 0 ? String(remaining[0].id) : null;
+      });
+
+      // 서버 재조회 또는 캐시 무효화
+      await refetchRepost();
+    } catch (err) {
+      console.error("탭 삭제 실패:", err);
+      alert("탭 삭제 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 탭 이름 변경 -> 서버 호출
+  const handleRenameTab = async (idStr: string, nextTitle: string) => {
+    const id = Number(idStr);
+    setTabsLocal((p) =>
+      p.map((t) =>
+        String(t.id) === String(idStr) ? { ...t, title: nextTitle } : t
       )
     );
-    // 첨부 후 박스 숨김
-    setShowAttachUnderButton(false);
-    // 탭 페이지를 1로 이동시키면 추가한 게시물이 보임
-    setTabPageMap((m) => ({ ...m, [tabId]: 1 }));
+    try {
+      await updateRepostTabTitle.mutateAsync({
+        tabId: id,
+        payload: { title: nextTitle },
+      });
+      await refetchRepost();
+    } catch (err) {
+      console.error("탭 제목 수정 실패:", err);
+    }
   };
 
-  // 편집모드 토글
-  const toggleEditMode = () => {
-    setIsEditMode((s) => {
-      if (s) {
-        setCheckedMap({});
-      }
-      return !s;
-    });
-    setShowAttachUnderButton(false);
+  // 카드 클릭: 편집모드면 체크, 아니면 새 창 열기
+  const handleCardClick = (item: RepostItemLocal) => {
+    if (isEditMode) return;
+    window.open(item.url, "_blank");
   };
 
   // 게시물 체크 토글
@@ -150,46 +321,77 @@ export default function RepostingPage() {
     setCheckedMap((p) => ({ ...p, [id]: checked }));
   };
 
-  // 선택된 게시물 삭제 (현재 탭에서만 삭제)
-  const handleDeleteSelectedPosts = () => {
+  // 선택된 게시물 삭제
+  const handleDeleteSelectedPosts = async () => {
     const checkedIds = Object.keys(checkedMap).filter((k) => checkedMap[k]);
     if (checkedIds.length === 0) {
       alert("삭제할 항목을 선택하세요.");
       return;
     }
     if (!confirm(`${checkedIds.length}개의 게시물을 삭제하시겠어요?`)) return;
-    setTabs((prev) =>
-      prev.map((t) =>
-        t.id === activeTabId
-          ? { ...t, items: t.items.filter((it) => !checkedIds.includes(it.id)) }
-          : t
-      )
-    );
-    setCheckedMap({});
-    setIsEditMode(false);
+
+    try {
+      // 1) 삭제 처리 (병렬 또는 순차)
+      for (const id of checkedIds) {
+        const rid = Number(id);
+        await deleteRepost.mutateAsync({ repostId: rid });
+      }
+
+      // 2) 내부 상태 초기화
+      setCheckedMap({});
+      setIsEditMode(false);
+
+      // 3) 페이지 유효성 검사 및 보정
+
+      const serverTotal = Number(repostData?.page?.totalElements ?? 0);
+
+      const predictedTotal =
+        serverTotal > 0
+          ? Math.max(0, serverTotal - checkedIds.length)
+          : undefined;
+
+      // 현재 페이지(1-based)
+      const rawPage = tabPageMap[String(activeTabId ?? "")];
+      const currentPageNum = Number(rawPage ?? 1);
+      const currentPageSafe =
+        Number.isFinite(currentPageNum) && currentPageNum > 0
+          ? currentPageNum
+          : 1;
+
+      // pageSize
+      const newTotal =
+        typeof predictedTotal === "number" ? predictedTotal : undefined;
+      if (typeof newTotal === "number") {
+        const newTotalPages = Math.max(1, Math.ceil(newTotal / PAGE_SIZE));
+        // 현재 페이지가 더 크면 1로 보정
+        if (currentPageSafe > newTotalPages) {
+          setTabPageMap((m) => ({ ...m, [String(activeTabId)]: 1 }));
+        }
+      } else {
+        // serverTotal을 알 수 없으면 안전하게 현재 탭을 1로 내리고 refetch
+        setTabPageMap((m) => ({ ...m, [String(activeTabId)]: 1 }));
+      }
+
+      // 4) 서버에서 재조회 (보정 후)
+      await refetchRepost();
+    } catch (err) {
+      console.error("게시물 삭제 실패:", err);
+      alert("삭제 중 오류가 발생했습니다.");
+    }
   };
 
-  // 개별 카드 클릭(편집모드면 체크만, 아니면 링크 오픈)
-  const handleCardClick = (item: RepostItem) => {
-    if (isEditMode) return;
-    window.open(item.url, "_blank");
-  };
+  const totalItems = Number(repostData?.page?.totalElements ?? 0);
+  const pagedItems = contentItems;
 
-  // 페이지네이션 처리 (각 탭 별도 페이지)
-  const currentPage = tabPageMap[activeTabId] ?? 1;
-  const setPageForActiveTab = (p: number) => {
-    setTabPageMap((m) => ({ ...m, [activeTabId]: p }));
-  };
+  // UI 로딩/에러 처리
+  if (isLoading) {
+    return <div className="p-8">로딩 중...</div>;
+  }
+  if (isError) {
+    return <div className="p-8">데이터 로드 중 오류가 발생했습니다.</div>;
+  }
 
-  const pagedItems = useMemo(() => {
-    const items = activeTab?.items ?? [];
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return items.slice(start, start + PAGE_SIZE);
-  }, [activeTab, currentPage]);
-
-  // 탭 삭제 버튼을 표시할지 (편집모드일 때만 표시)
-  const showRemoveButtons = isEditMode && tabs.length > 1;
-
+  // 렌더
   return (
     <div className="flex flex-col items-center">
       <div className="w-310 mx-auto">
@@ -205,7 +407,7 @@ export default function RepostingPage() {
         {/* 탭 툴바 */}
         <div className="relative">
           <div className="flex justify-end gap-5">
-            {!isEditMode && (
+            {tabsLocal.length > 0 && !isEditMode && (
               <>
                 <BtnIcon
                   onClick={() => {
@@ -217,7 +419,7 @@ export default function RepostingPage() {
                 </BtnIcon>
 
                 <BtnIcon
-                  onClick={() => toggleEditMode()}
+                  onClick={() => setIsEditMode((s) => !s)}
                   startIcon={
                     <Pencil className="w-[16.5px] h-[17.5px] text-color-high" />
                   }
@@ -227,7 +429,6 @@ export default function RepostingPage() {
               </>
             )}
 
-            {/* 편집 모드 버튼들 */}
             {isEditMode && (
               <>
                 <BtnIcon
@@ -237,7 +438,7 @@ export default function RepostingPage() {
                   삭제하기
                 </BtnIcon>
                 <BtnIcon
-                  onClick={() => toggleEditMode()}
+                  onClick={() => setIsEditMode(false)}
                   startIcon={<X className="w-6 h-6 text-color-high" />}
                 >
                   취소하기
@@ -247,44 +448,47 @@ export default function RepostingPage() {
           </div>
 
           {/* 링크첨부 박스 */}
-          {showAttachUnderButton && !isEditMode && (
-            <div
-              style={{
-                position: "absolute",
-                top: "calc(100% + 24px)",
-                right: 0,
-                zIndex: 9999,
-              }}
-            >
-              <LinkAttachBox
-                initial=""
-                onAttach={(payload) => handleAttachToTab(activeTabId, payload)}
-                onCancel={() => setShowAttachUnderButton(false)}
-                autoFocus
-              />
-            </div>
-          )}
+          {showAttachUnderButton &&
+            !isEditMode &&
+            activeTabId &&
+            tabsLocal.length > 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 24px)",
+                  right: 0,
+                  zIndex: 9999,
+                }}
+              >
+                <LinkAttachBox
+                  initial=""
+                  onAttach={(payload) =>
+                    handleAttachToTab(String(activeTabId), payload)
+                  }
+                  onCancel={() => setShowAttachUnderButton(false)}
+                  autoFocus
+                />
+              </div>
+            )}
         </div>
 
         {/* Tabs */}
         <div className="mt-15">
           <Tabs
             items={tabItemsForTabsComponent}
-            value={activeTabId}
+            value={activeTabId ? String(activeTabId) : ""}
             onChange={(id) => {
               setActiveTabId(id);
-              // 탭 전환 시 페이지 초기화
               setTabPageMap((m) => ({ ...m, [id]: m[id] ?? 1 }));
-              // 탭 전환시 편집모드/박스 닫기
               setIsEditMode(false);
               setShowAttachUnderButton(false);
               setCheckedMap({});
             }}
             onAdd={handleAddTab}
-            onRemove={handleRemoveTab}
-            onRename={handleRenameTab}
+            onRemove={(id) => handleRemoveTab(id)}
+            onRename={(id, nextTitle) => handleRenameTab(id, nextTitle)}
             maxTabs={MAX_TABS}
-            showRemoveButtons={showRemoveButtons}
+            showRemoveButtons={isEditMode}
             tabWidth={130}
             tabHeight={70}
             overlapOffset={16}
@@ -293,28 +497,42 @@ export default function RepostingPage() {
 
         {/* 탭 콘텐츠 영역 */}
         <div>
-          {activeTab.items.length === 0 ? (
+          {tabsLocal.length === 0 ? (
+            // 탭이 아예 없는 초기 상태
+            <div className="bg-surface-container-10 px-10 py-15 h-175 mb-15 flex flex-col items-center justify-center">
+              <p className="text-color-mid mb-20">
+                탭을 추가하여 리포스팅 기록을 관리해보세요.
+              </p>
+            </div>
+          ) : pagedItems.length === 0 ? (
+            // 기존 빈 탭일 때 LinkAttachBox 노출
             <div className="bg-surface-container-10 px-10 py-15 h-175 mb-15">
               <LinkAttachBox
-                onAttach={(payload) => handleAttachToTab(activeTabId, payload)}
+                onAttach={(payload) =>
+                  activeTabId && handleAttachToTab(String(activeTabId), payload)
+                }
                 onCancel={() => {}}
                 autoFocus
               />
             </div>
           ) : (
-            /* 등록된 게시물이 있을 때 */
             <div className="bg-surface-container-10 px-10 py-15 min-h-285 mb-15">
               <div className="grid grid-cols-3 gap-x-10 gap-y-15">
                 {pagedItems.map((it) => {
                   const checked = !!checkedMap[it.id];
+                  const status = (it.status ?? "").toString().toUpperCase();
+                  const isPending = status === "PENDING";
+                  const imgForCard =
+                    it.image && thumbnailLoaded[it.id] ? it.image : undefined;
                   return (
                     <div key={it.id} className="relative">
                       <RepostCard
-                        id={0}
-                        archiveId={0}
-                        tabId={activeTabId ? undefined : undefined}
-                        title={it.title}
-                        image={it.image ?? undefined}
+                        id={it.repostId ? Number(it.repostId) : 0}
+                        archiveId={Number(archiveId) || 0}
+                        tabId={activeTabId ? Number(activeTabId) : undefined}
+                        title={isPending ? undefined : it.title}
+                        image={isPending ? undefined : imgForCard}
+                        isLoading={isPending}
                         onClick={() => handleCardClick(it)}
                       />
 
@@ -340,11 +558,12 @@ export default function RepostingPage() {
             </div>
           )}
         </div>
+
         {/* 페이지네이션: 탭별 페이지네이션 */}
-        {activeTab.items.length !== 0 && (
+        {totalItems > 0 && (
           <div className="flex justify-center mb-14">
             <Pagination
-              totalItems={activeTab.items.length}
+              totalItems={totalItems}
               pageSize={PAGE_SIZE}
               visiblePages={5}
               currentPage={currentPage}

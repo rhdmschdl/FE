@@ -176,7 +176,7 @@ const DiaryDetailPage = () => {
 
   // 저장
   const handleSave = () => {
-    if (!diaryId) return;
+    if (!diaryId || isUpdating) return;
 
     const files = images
       .filter((img) => img.fileId > 0)
@@ -206,7 +206,7 @@ const DiaryDetailPage = () => {
 
   // 삭제
   const handleDelete = () => {
-    if (!diaryId) return;
+    if (!diaryId || isDeleting) return;
 
     deleteDiary(
       { diaryId: Number(diaryId) },
@@ -239,7 +239,7 @@ const DiaryDetailPage = () => {
 
   return (
     <div
-      className="w-full h-full"
+      className="w-full min-w-310 h-full"
       style={{ backgroundColor: getDiaryBgColor(displayColor) }}
     >
       <div className="flex flex-col items-center justify-center max-w-[1920px] mx-auto py-15 gap-15">
@@ -339,7 +339,7 @@ const DiaryDetailPage = () => {
           onCancel={handleCancelEdit}
           onDelete={() => setDeleteModalOpen(true)}
           isEdit={!isEditMode}
-          isDisabled={!isFormValid || isUpdating || isUploading || isDeleting}
+          isDisabled={!isFormValid || isUploading}
           color={displayColor}
         />
       ) : (

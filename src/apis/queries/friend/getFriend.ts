@@ -1,4 +1,4 @@
-import axiosInstance from "@/apis/axios";
+import axiosInstance, { AxiosError } from "@/apis/axios";
 import type {
   GetFriendListRequest,
   GetFriendListResponse,
@@ -23,12 +23,19 @@ export const getFriendList = async (
 
 export const getStatusFriend = async (
   data: GetStatusFriendRequest
-): Promise<GetStatusFriendResponse> => {
+): Promise<GetStatusFriendResponse | null> => {
   const { friendId } = data;
-  const response = await axiosInstance.get<GetStatusFriendResponse>(
-    `/api/v1/friends/${friendId}/status`
-  );
-  return response.data;
+  try {
+    const response = await axiosInstance.get<GetStatusFriendResponse>(
+      `/api/v1/friends/${friendId}/status`
+    );
+    return response.data;
+  } catch (error) {
+    if (error instanceof AxiosError && error.response?.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 };
 
 export const getSendFriendList = async (

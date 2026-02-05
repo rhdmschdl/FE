@@ -101,7 +101,7 @@ const DiaryWritePage = () => {
 
   // 저장
   const handleSave = () => {
-    if (!archiveId) return;
+    if (!archiveId || isPending) return;
 
     // 이미 업로드된 이미지의 fileId 사용
     const files = images
@@ -145,7 +145,7 @@ const DiaryWritePage = () => {
 
   return (
     <div
-      className="w-full h-full"
+      className="w-full min-w-310 h-full"
       style={{ backgroundColor: getDiaryBgColor(color) }}
     >
       <div className="flex flex-col items-center justify-center max-w-[1920px] mx-auto py-15 gap-15">
@@ -214,7 +214,7 @@ const DiaryWritePage = () => {
         onEdit={() => {}}
         onSave={handleSave}
         onCancel={() => navigate(-1)}
-        isDisabled={!isFormValid || isPending || isUploading}
+        isDisabled={!isFormValid || isUploading}
         color={color}
       />
     </div>
