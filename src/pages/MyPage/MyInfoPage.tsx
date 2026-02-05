@@ -45,7 +45,8 @@ export default function MyInfoPage() {
     onSuccess: () => {
       console.log("로그아웃 성공");
       logoutUser();
-      navigate("/");
+      localStorage.removeItem("auth-storage");
+      navigate("/login");
     },
     onError: (error) => {
       console.error("로그아웃 실패:", error);
@@ -57,6 +58,7 @@ export default function MyInfoPage() {
     onSuccess: () => {
       console.log("회원탈퇴 성공");
       logoutUser();
+      localStorage.removeItem("auth-storage");
       navigate("/");
     },
     onError: (error) => {

@@ -95,8 +95,6 @@ const SampleArchiveDetail = () => {
           {/* 아카이브 달력 (데이터 없음) */}
           <Calendar
             archiveId={archiveIdNum}
-            labelData={[]} // Mock 데이터에는 캘린더 데이터가 없으므로 빈 배열
-            stickerData={[]}
             mode="interactive"
           />
           <div className="flex flex-col items-start justify-between gap-[60px] my-[60px]">

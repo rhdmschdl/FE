@@ -7,7 +7,7 @@ import AdditionalModal from "./modal/AdditionalModal";
 import EventModal from "./modal/EventModal";
 import type { LabelData, StickerResponse } from "@/types/calendar";
 import EventListModal from "./modal/EventListModal";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DeleteCalendar, DeleteSticker } from "@/apis/mutations/calendar/Calendar";
 import { StickerType } from "@/enums/sticker";
 import StickerOptionModal from "./modal/StickerOptionModal";
@@ -24,16 +24,17 @@ import MoneySticker from "@/assets/icon/sticker/money.svg";
 import MusicalNoteSticker from "@/assets/icon/sticker/musical_note.svg";
 import ShiningSticker from "@/assets/icon/sticker/shining.svg";
 import TicketSticker from "@/assets/icon/sticker/ticket.svg";
+import { getMonthlyEvents, getMonthlyStickers } from "@/apis/queries/calendar/Calendar";
 
 interface CalendarProps {
   /** 날짜별 라벨 데이터 (키: "YYYY-MM-DD" 형식, 값: 라벨 텍스트 배열) */
-  labelData?: LabelData[];
+  // labelData?: LabelData[];
   /** 날짜별 스티커 데이터 (키: "YYYY-MM-DD" 형식, 값: 스티커 ID 또는 식별자) */
-  stickerData?: StickerResponse[];
+  // stickerData?: StickerResponse[];
   /** 스티커 이미지 URL (스티커 영역에 표시할 이미지) */
   // stickerType?: StickerType;
   /** 아카이브 ID */
-  archiveId?: number;
+  archiveId: number;
   mode?: "interactive" | "readonly";
 }
 
@@ -43,8 +44,8 @@ type isSportType = true | false | null; //스포츠 타입 여부, null: 스티�
 
 const Calendar = ({
   archiveId,
-  labelData,
-  stickerData,
+  // labelData,
+  // stickerData,
   // stickerType,
   mode = "interactive",
 }: CalendarProps) => {
@@ -71,6 +72,27 @@ const Calendar = ({
 
   // 컴포넌트 안
   const queryClient = useQueryClient();
+
+  // ✅ [추가] 현재 보고 있는 달의 연/월 계산
+  const [activeDate, setActiveDate] = useState(new Date());
+
+  const year = activeDate.getFullYear();
+  const month = activeDate.getMonth() + 1;
+
+  // ✅ [최적화] 현재 달만 조회 + 캐시 시간 5분 설정
+  const { data: labelData } = useQuery({
+    queryKey: ["monthlyEvents", archiveId, year, month],
+    queryFn: () => getMonthlyEvents(archiveId, year, month),
+    staleTime: 5 * 60 * 1000, // 5분간 캐시 유지
+    gcTime: 10 * 60 * 1000, // 10분간 메모리에 보관
+  });
+
+  const { data: stickerData } = useQuery({
+    queryKey: ["monthlyStickers", archiveId, year, month],
+    queryFn: () => getMonthlyStickers(archiveId, year, month),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 
   const deleteEventsMutation = useMutation({
     mutationFn: async (ids: number[]) => {
@@ -110,7 +132,6 @@ const Calendar = ({
 
   // 피그마처럼 초기에는 선택(Active) 상태가 없도록 null로 시작
   const [value, onChange] = useState<Value>(null);
-  const [activeDate, setActiveDate] = useState(new Date());
   // ✅ 우클릭 모달 위치(달력 래퍼 기준 좌표)
   const [additionalPos, setAdditionalPos] = useState<{
     x: number;

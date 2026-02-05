@@ -15,7 +15,6 @@ import EmptyFeedList from "@/components/feed/EmptyFeedList";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { GetArchiveDetail } from "@/apis/queries/archive/getArchive";
 import { LikeArchive } from "@/apis/mutations/archive/archive";
-import { getMonthlyEvents, getMonthlyStickers } from "@/apis/queries/calendar/Calendar";
 import type { ArchiveResponse } from "@/types/archive";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -27,15 +26,6 @@ const FeedDetail = () => {
 
   const userId = useAuthStore((state) => state.user?.id);
 
-  const { data: monthlyEvents } = useQuery({
-    queryKey: ["monthlyEvents", Number(archiveId)],
-    queryFn: () => getMonthlyEvents(Number(archiveId), new Date().getFullYear(), new Date().getMonth() + 1),
-  });
-
-  const { data: monthlyStickers } = useQuery({
-    queryKey: ["monthlyStickers", Number(archiveId)],
-    queryFn: () => getMonthlyStickers(Number(archiveId), new Date().getFullYear(), new Date().getMonth() + 1),
-  });
   const { data: feed } = useQuery({
     queryKey: ["feed", archiveId],
     queryFn: () => GetArchiveDetail(Number(archiveId)),
@@ -90,8 +80,9 @@ const FeedDetail = () => {
         />
         {/* 아카이브 달력 */}
         <Calendar
-          labelData={monthlyEvents}
-          stickerData={monthlyStickers}
+          // labelData={monthlyEvents}
+          // stickerData={monthlyStickers}
+          archiveId={Number(archiveId)}
           mode="readonly"
         />
         {/* 덕질 일기 */}
