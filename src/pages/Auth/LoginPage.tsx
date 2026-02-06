@@ -66,6 +66,9 @@ const LoginPage = () => {
     mutationFn: login,
     onSuccess: (data) => {
       console.log("로그인 성공:", data);
+      // ✅ Writer : 일반 로그인 정보를 localStorage에 저장
+      localStorage.setItem("loginType", "GENERAL");
+      localStorage.removeItem("provider"); // 소셜 정보 제거
       loginUser({
         id: data.user.id,
         email: data.user.email,
@@ -98,21 +101,22 @@ const LoginPage = () => {
   };
 
   const handleSocialLogin = (provider: string) => {
+    // ✅ Writer : 소셜 로그인 정보를 localStorage에 저장
+    localStorage.setItem("provider", provider); // 'naver', 'kakao', 'google' 저장
+    localStorage.setItem("loginType", "SOCIAL");
+
     switch (provider) {
       case "google":
-        window.location.href = `${
-          import.meta.env.VITE_API_BASE
-        }/oauth2/authorization/google?prompt=login`;
+        window.location.href = `${import.meta.env.VITE_API_BASE
+          }/oauth2/authorization/google?prompt=login`;
         break;
       case "kakao":
-        window.location.href = `${
-          import.meta.env.VITE_API_BASE
-        }/oauth2/authorization/kakao?prompt=login`;
+        window.location.href = `${import.meta.env.VITE_API_BASE
+          }/oauth2/authorization/kakao?prompt=login`;
         break;
       case "naver":
-        window.location.href = `${
-          import.meta.env.VITE_API_BASE
-        }/oauth2/authorization/naver?prompt=login`;
+        window.location.href = `${import.meta.env.VITE_API_BASE
+          }/oauth2/authorization/naver?prompt=login`;
     }
   };
 

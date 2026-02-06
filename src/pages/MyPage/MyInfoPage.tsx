@@ -5,7 +5,8 @@ import ConfirmModal from "@/components/common/ConfirmModal";
 import footerImage from "../../assets/images/footer.png";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useMutation } from "@tanstack/react-query";
-import { logout, withdraw } from "@/apis/mutations/auth/logout";
+import { withdraw } from "@/apis/mutations/auth/logout";
+import { useLogout } from "@/hooks/useLogout";
 
 function maskEmail(email?: string | null) {
   if (!email) return "";
@@ -37,28 +38,34 @@ export default function MyInfoPage() {
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
 
-  const logoutUser = useAuthStore((state) => state.logout);
+  // const logoutUser = useAuthStore((state) => state.logout);
 
   // 로그아웃 뮤테이션
-  const logoutMutation = useMutation({
-    mutationFn: logout,
-    onSuccess: () => {
-      console.log("로그아웃 성공");
-      logoutUser();
-      localStorage.removeItem("auth-storage");
-      navigate("/login");
-    },
-    onError: (error) => {
-      console.error("로그아웃 실패:", error);
-    },
-  });
+  // const logoutMutation = useMutation({
+  //   mutationFn: logout,
+  //   onSuccess: () => {
+  //     console.log("로그아웃 성공");
+  //     logoutUser();
+  //     localStorage.removeItem("auth-storage");
+  //     navigate("/login");
+  //   },
+  //   onError: (error) => {
+  //     console.error("로그아웃 실패:", error);
+  //   },
+  // });
+  const { handleLogout } = useLogout();
+  const clearAuth = useAuthStore((state) => state.clearAuth);
 
   const withdrawMutation = useMutation({
     mutationFn: withdraw,
     onSuccess: () => {
       console.log("회원탈퇴 성공");
-      logoutUser();
+      // logoutUser();
+      // localStorage.removeItem("auth-storage");
+      clearAuth();
       localStorage.removeItem("auth-storage");
+      localStorage.removeItem("provider"); // 소셜 정보 제거
+      localStorage.removeItem("loginType"); // 로그인 타입 제거
       navigate("/");
     },
     onError: (error) => {
@@ -77,7 +84,8 @@ export default function MyInfoPage() {
   }, [isEditingName]);
 
   const handleLogoutConfirm = () => {
-    logoutMutation.mutate();
+    // logoutMutation.mutate();
+    handleLogout(); // ✅ Writer : Hooby : 로그아웃 후 로그인 페이지로 이동
   };
 
   const handleWithdrawConfirm = async () => {

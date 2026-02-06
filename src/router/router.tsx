@@ -60,6 +60,7 @@ const router = createBrowserRouter([
       { path: "signup", element: <SignupPage /> },
       { path: "password-find", element: <PasswordFind /> },
       { path: "/oauth/callback", element: <SocialCallback /> },
+      { path: "/logged-out", element: <SocialCallback /> } // ✅ 카카오 로그아웃 콜백: SocialCallback에서 경로로 구분하여 처리
     ],
   },
 
