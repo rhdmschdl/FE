@@ -1,32 +1,30 @@
-// src/components/common/Button/SelectBox.tsx
 import { useState, useRef, useEffect } from "react";
 import { twMerge } from "tailwind-merge";
 import List from "./List";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import type { Sort } from "@/enums/sort";
 
-export type SelectBoxOption = {
+export type SelectBoxOption<T extends string = string> = {
   label: string;
-  value: string;
+  value: T;
 };
 
-type SelectBoxProps = {
-  options: SelectBoxOption[];
-  value?: Sort;
-  onChange: (value: Sort) => void;
+type SelectBoxProps<T extends string = string> = {
+  options: readonly SelectBoxOption<T>[] | SelectBoxOption<T>[];
+  value?: T;
+  onChange: (value: T) => void;
   className?: string;
   placeholder?: string;
   Icon?: React.ReactNode;
 };
 
-export default function SelectBox({
+export default function SelectBox<T extends string = string>({
   options,
   value,
   onChange,
   className,
   placeholder = "전체",
   Icon,
-}: SelectBoxProps) {
+}: SelectBoxProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -90,7 +88,7 @@ export default function SelectBox({
             <List
               key={opt.value}
               onClick={() => {
-                onChange(opt.value as Sort);
+                onChange(opt.value);
                 setIsOpen(false);
               }}
               selected={opt.value === value}

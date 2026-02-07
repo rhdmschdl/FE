@@ -1,16 +1,12 @@
 import { useNavigate } from "react-router-dom";
 import ArchiveHeader from "@/components/archive/ArchiveHeader";
-import ArchiveTitle from "@/components/archive/ArchiveTitle";
 import ButtonLike from "@/components/archive/ButtonLike";
 import DiaryList from "@/components/archive/List/DiaryList";
-import EmptyList from "@/components/archive/Empty/EmptyList";
 import GalleryList from "@/components/archive/List/GalleryList";
 import RepostList from "@/components/archive/List/RepostList";
 import TicketList from "@/components/archive/List/TicketList";
 import Calendar from "@/components/calendar/Calendar";
 import Banner from "@/components/community/Banner";
-import { archiveDataMock } from "@/mockData/archiveData";
-import { Camera, Link } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { GetArchiveDetail } from "@/apis/queries/archive/getArchive";
@@ -161,10 +157,6 @@ const ArchiveDetail = () => {
     deleteArchiveMutation.mutate();
   };
 
-  const archivedData = archiveDataMock.find(
-    (archived) => archived.archiveId === Number(archiveId)
-  );
-
   return (
     <div className="flex flex-col items-center justify-center">
       <Banner
@@ -189,6 +181,13 @@ const ArchiveDetail = () => {
             onVisibilitySave={handleVisibilitySave}
             visibility={archive?.visibility}
             onDeleteArchive={handleDeleteModalOpen}
+            onClickProfile={() => {
+              if (archive?.createdBy === currentUser?.id) {
+                navigate(`/mypage`);
+                return;
+              }
+              navigate(`/profile/${archive?.createdBy}`);
+            }}
           />
           {/* 아카이브 달력 */}
           <Calendar
@@ -201,28 +200,11 @@ const ArchiveDetail = () => {
             {/* 덕질 일기 */}
             <DiaryList archiveId={archiveId} limit={3} isOwner={archive?.createdBy === currentUser?.id} />
             {/* 덕질 갤러리 */}
-            <ArchiveTitle
-              title="덕질 갤러리"
-              onClick={() => {
-                if (!archiveId) return;
-                navigate(`/archive/${archiveId}/gallery`);
-              }}
-              isMore={(archivedData?.Gallery?.length ?? 0) > 0}
-              isEditable={false}
+            <GalleryList
+              archiveId={archiveId}
+              limit={3}
+              isOwner={archive?.createdBy === currentUser?.id}
             />
-            {(archivedData?.Gallery?.length ?? 0 > 0) ? (
-              <GalleryList gallery={archivedData?.Gallery} />
-            ) : (
-              <EmptyList
-                title="사진 추가"
-                description="사진을 추가해서 덕질 기록을 남겨보세요."
-                startIcon={<Camera className="w-6 h-6 text-color-high" />}
-                onClick={() => {
-                  if (!archiveId) return;
-                  navigate(`/archive/${archiveId}/gallery`);
-                }}
-              />
-            )}
             {/* 티켓북 */}
             <TicketList
               archiveId={archiveId}
@@ -230,37 +212,25 @@ const ArchiveDetail = () => {
               isOwner={archive?.createdBy === currentUser?.id}
             />
             {/* 덕질 리포스트 */}
-            <ArchiveTitle
-              title="덕질 리포스트"
-              onClick={() => {
-                if (!archiveId) return;
-                navigate(`/archive/${archiveId}/repost`);
-              }}
-              isMore={(archivedData?.Repost?.length ?? 0) > 0}
-              isEditable={false}
+            <RepostList
+              archiveId={archiveId}
+              limit={3}
+              isOwner={archive?.createdBy === currentUser?.id}
             />
-            {(archivedData?.Repost?.length ?? 0 > 0) ? (
-              <RepostList repost={archivedData?.Repost} />
-            ) : (
-              <EmptyList
-                title="링크 첨부"
-                description="링크를 모아서 아카이브를 만들어보세요."
-                startIcon={<Link className="w-6 h-6 text-color-high" />}
-                onClick={() => {
-                  if (!archiveId) return;
-                  navigate(`/archive/${archiveId}/repost`);
-                }}
-              />
-            )}
           </div>
           {/* 좋아요 */}
           <ButtonLike
             liked={archive?.isLiked}
             likeCount={archive?.likeCount}
             onClick={() => {
+              if (archive?.createdBy === currentUser?.id) {
+                alert("본인의 아카이브에는 좋아요를 누를 수 없습니다.");
+                return;
+              }
               likeArchiveMutation.mutate();
               console.log("좋아요 클릭");
             }}
+          // disabled={archive?.createdBy === currentUser?.id}
           />
         </div>
       </div>

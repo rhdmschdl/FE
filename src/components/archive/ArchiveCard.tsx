@@ -134,8 +134,8 @@ const ArchiveCard = ({
           />
         )}
       </div>
-      <div className="bottom-0 w-90 h-24 rounded-b-[10px] bg-brand-blue-300">
-        <p className="flex items-center h-24 px-5 typo-body1-semibold text-color-highest">
+      <div className="flex items-center bottom-0 w-90 h-24 rounded-b-[10px] bg-brand-blue-300 px-5">
+        <p className="typo-body1-semibold text-color-highest truncate w-full">
           {title ? title : "사용자가 지정한 아카이브 파일명"}
         </p>
       </div>

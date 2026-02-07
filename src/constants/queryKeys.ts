@@ -38,4 +38,10 @@ export const queryKeys = {
     all: ["repost"] as const,
     list: (archiveId: string | number) => ["repost", archiveId] as const,
   },
+  posts: {
+    all: ["posts"] as const,
+    list: (params: { page?: number; size?: number; category?: string; sortBy?: string }) =>
+      ["posts", "list", params] as const,
+    detail: (postId: number | string) => ["posts", "detail", postId] as const,
+  },
 } as const;

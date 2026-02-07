@@ -82,6 +82,7 @@ const SettngModal = ({
         <BtnBasic
           variant="gray"
           onClick={() => {
+            onClose?.();
             console.log("취소하기");
           }}
           className="w-55"

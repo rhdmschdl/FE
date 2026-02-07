@@ -1,17 +1,15 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import CommentSection from "@/components/comments/CommentSection";
 import BackNavigator from "@/components/common/BackNavigator";
 import MediaCarousel from "@/components/media/MediaCarousel";
 import type { MediaItem } from "@/types/media";
 import { MediaType } from "@/enums/mediaType";
-import fetchPostDetail from "@/apis/queries/community/getDetailPost";
-import type {
-  PostDetailDto,
-  PostFileDto,
-} from "@/apis/queries/community/getDetailPost";
+import { useGetPostDetail } from "@/apis/queries/community/useGetPostDetail";
+import type { PostFileDto } from "@/apis/queries/community/getDetailPost";
 import { useAuthStore } from "@/store/useAuthStore";
 import type { User } from "@/types/user";
+import CommunityDetailSkeleton from "@/components/community/CommunityDetailSkeleton";
 
 export default function CommunityDetail() {
   const rawUser = useAuthStore((s) => s.user);
@@ -27,27 +25,7 @@ export default function CommunityDetail() {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
 
-  const [post, setPost] = useState<PostDetailDto | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!postId) return;
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await fetchPostDetail(postId);
-        setPost(data);
-      } catch (e: any) {
-        console.error("게시글 조회 실패", e);
-        setError(e?.message || "게시글을 불러오지 못했습니다.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [postId]);
+  const { data: post, isLoading, isError, error } = useGetPostDetail(postId);
 
   // 서버 files -> MediaItem 변환
   const mediaItems: MediaItem[] = useMemo(() => {
@@ -94,21 +72,19 @@ export default function CommunityDetail() {
     return items;
   }, [mediaItems]);
 
-  if (loading) {
-    return (
-      <div className="flex justify-center p-8">
-        <div>로딩 중... (스켈레톤 컴포넌트로 교체 권장)</div>
-      </div>
-    );
+  if (isLoading) {
+    return <CommunityDetailSkeleton />;
   }
 
-  if (error) {
+  if (isError) {
     return (
       <div className="flex flex-col items-center p-8">
         <div className="mb-4 text-color-highest">
           게시글을 불러오는 중 오류가 발생했습니다.
         </div>
-        <div className="mb-4 text-sm text-color-sub">{error}</div>
+        <div className="mb-4 text-sm text-color-sub">
+          {(error as Error)?.message || "게시글을 불러오지 못했습니다."}
+        </div>
         <button className="btn" onClick={() => window.location.reload()}>
           다시 시도
         </button>

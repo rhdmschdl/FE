@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { galleryDataMock } from "@/mockData/galleryData";
 import Banner from "@/components/community/Banner";
 import { useParams } from "react-router-dom";
 import ArchiveHeader from "@/components/archive/ArchiveHeader";
@@ -8,10 +7,7 @@ import DiaryList from "@/components/archive/List/DiaryList";
 import GalleryList from "@/components/archive/List/GalleryList";
 import TicketList from "@/components/archive/List/TicketList";
 import RepostList from "@/components/archive/List/RepostList";
-import { repostDataMock } from "@/mockData/repostData";
 import ButtonLike from "@/components/archive/ButtonLike";
-import ArchiveTitle from "@/components/archive/ArchiveTitle";
-import EmptyFeedList from "@/components/feed/EmptyFeedList";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { GetArchiveDetail } from "@/apis/queries/archive/getArchive";
 import { LikeArchive } from "@/apis/mutations/archive/archive";
@@ -49,14 +45,7 @@ const FeedDetail = () => {
       alert("좋아요에 실패했습니다. 다시 시도해주세요.");
     },
   });
-  // 덕질 갤러리 데이터 조회
-  const gallery = galleryDataMock.filter(
-    (gallery) => gallery.archiveId === Number(archiveId)
-  );
-  // 덕질 리포스트 데이터 조회
-  const repost = repostDataMock.filter(
-    (repost) => repost.archiveId === Number(archiveId)
-  );
+
   return (
     <div className="flex flex-col items-center justify-center">
       <Banner image={feed?.bannerUrl ?? ""} />
@@ -93,20 +82,12 @@ const FeedDetail = () => {
           emptyDescription="아직 작성된 일기가 없어요."
         />
         {/* 덕질 갤러리 */}
-        <ArchiveTitle
-          title="덕질 갤러리"
-          onClick={() => {
-            if (!archiveId) return;
-            navigate(`/archive/${archiveId}/gallery`);
-          }}
-          isMore={(gallery.length ?? 0) > 0}
-          isEditable={false}
+        <GalleryList
+          archiveId={archiveId}
+          limit={3}
+          isOwner={false}
+          emptyDescription="아직 작성된 갤러리가 없어요."
         />
-        {(gallery.length ?? 0 > 0) ? (
-          <GalleryList gallery={gallery} />
-        ) : (
-          <EmptyFeedList description="아직 작성된 갤러리가 없어요." />
-        )}
         {/* 티켓북 */}
         <TicketList
           archiveId={archiveId}
@@ -115,25 +96,21 @@ const FeedDetail = () => {
           emptyDescription="아직 작성된 티켓북이 없어요."
         />
         {/* 덕질 리포스트 */}
-        <ArchiveTitle
-          title="덕질 리포스트"
-          onClick={() => {
-            if (!archiveId) return;
-            navigate(`/archive/${archiveId}/repost`);
-          }}
-          isMore={(repost.length ?? 0) > 0}
-          isEditable={false}
+        <RepostList
+          archiveId={archiveId}
+          limit={3}
+          isOwner={false}
+          emptyDescription="아직 작성된 리포스트가 없어요."
         />
-        {(repost.length ?? 0 > 0) ? (
-          <RepostList repost={repost} />
-        ) : (
-          <EmptyFeedList description="아직 작성된 리포스트가 없어요." />
-        )}
         {/* 좋아요 */}
         <ButtonLike
           liked={feed?.isLiked}
           likeCount={feed?.likeCount ?? 0}
           onClick={() => {
+            if (feed?.createdBy === userId) {
+              alert("본인의 피드에는 좋아요를 누를 수 없습니다.");
+              return;
+            }
             likeArchiveMutation.mutate();
             console.log("좋아요 클릭");
           }}

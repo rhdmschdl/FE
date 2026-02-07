@@ -1,3 +1,4 @@
+import { useState } from "react";
 import vectorIcon from "@/assets/icon/Vector.svg";
 import shareIcon from "@/assets/icon/Share.svg";
 
@@ -20,6 +21,8 @@ const CommunityCard = ({
   onClick,
   onClickShare,
 }: CommunityCardProps) => {
+  const [imageError, setImageError] = useState(false);
+
   return (
     <div
       onClick={(e) => {
@@ -41,10 +44,14 @@ const CommunityCard = ({
       </div>
       {/* 이미지 */}
       <div className="flex items-center justify-center w-full h-45 bg-surface-container-20">
-        {img && (
-          <img src={img} alt="img" className="w-full h-full object-cover" />
-        )}
-        {!img && (
+        {img && !imageError ? (
+          <img
+            src={img}
+            alt="img"
+            className="w-full h-full object-cover"
+            onError={() => setImageError(true)}
+          />
+        ) : (
           <img src={vectorIcon} alt="icon" className="w-[43px] h-[31px]" />
         )}
       </div>

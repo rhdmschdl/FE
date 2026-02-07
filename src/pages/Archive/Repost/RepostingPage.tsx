@@ -19,6 +19,7 @@ import { useUpdateRepostBookTitle } from "@/apis/mutations/repost/useUpdateRepos
 import { useUpdateRepostTabTitle } from "@/apis/mutations/repost/useUpdateRepostTabTItle";
 import { useDeleteRepost } from "@/apis/mutations/repost/useDeleteRepost";
 import { useDeleteRepostTab } from "@/apis/mutations/repost/useDeleteRepostTab";
+import RepostingPageSkeleton from "@/components/repost/RepostingPageSkeleton";
 
 type RepostItemLocal = {
   id: string;
@@ -416,7 +417,7 @@ export default function RepostingPage() {
 
   // UI 로딩/에러 처리
   if (isLoading) {
-    return <div className="p-8">로딩 중...</div>;
+    return <RepostingPageSkeleton />;
   }
   if (isError) {
     return <div className="p-8">데이터 로드 중 오류가 발생했습니다.</div>;

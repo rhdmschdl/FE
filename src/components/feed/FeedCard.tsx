@@ -51,8 +51,8 @@ const FeedCard = ({ id, title, image, onClick }: FeedCardProps) => {
         )}
       </div>
 
-      <div className="bottom-0 w-[360px] h-[96px] rounded-b-[10px] bg-brand-blue-300">
-        <p className="flex items-center h-[96px] px-[20px] typo-body1-semibold text-color-highest">
+      <div className="flex items-center bottom-0 w-90 h-24 rounded-b-[10px] bg-brand-blue-300 px-5">
+        <p className="typo-body1-semibold text-color-highest truncate w-full">
           {title ? title : "사용자가 지정한 아카이브 파일명"}
         </p>
       </div>

@@ -16,6 +16,7 @@ import DiaryText from "@/components/diary/DiaryText";
 import CheckboxIcon from "@/assets/icon/CheckboxIcon";
 import { DiaryFooter } from "@/components/diary/DiaryFooter";
 import ConfirmModal from "@/components/common/ConfirmModal";
+import DiaryDetailSkeleton from "@/components/diary/DiaryDetailSkeleton";
 import dayjs from "dayjs";
 
 type UploadedImage = {
@@ -219,11 +220,7 @@ const DiaryDetailPage = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="w-full h-full bg-[#EEF7FC] flex items-center justify-center">
-        <p>로딩 중...</p>
-      </div>
-    );
+    return <DiaryDetailSkeleton />;
   }
 
   if (!diary) {

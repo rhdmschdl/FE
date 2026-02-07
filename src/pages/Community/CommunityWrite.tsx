@@ -6,11 +6,12 @@ import MediaUploader from "@/components/media/MediaUploader";
 import CommunityTab from "@/components/community/CommunityTab";
 import { BtnBasic } from "@/components/common/Button/Btn";
 import { useNavigate } from "react-router-dom";
-import createCommunityPost from "@/apis/mutations/community/createPost";
+import { useCreatePost } from "@/apis/mutations/community/useCreatePost";
 import { MediaRole } from "@/enums/mediaRole";
 
 export default function CommunityWrite() {
   const navigate = useNavigate();
+  const { mutate: createPost, isPending } = useCreatePost();
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -178,13 +179,15 @@ export default function CommunityWrite() {
 
     const payload = { title, content, category, files: filesFinal };
 
-    try {
-      const resp = await createCommunityPost(payload);
-      console.log("게시글 생성 성공:", resp);
-      navigate("/community");
-    } catch (e: any) {
-      alert(e?.message ?? "게시글 생성 중 오류가 발생했습니다.");
-    }
+    createPost(payload, {
+      onSuccess: (resp) => {
+        console.log("게시글 생성 성공:", resp);
+        navigate("/community");
+      },
+      onError: (e) => {
+        alert(e?.message ?? "게시글 생성 중 오류가 발생했습니다.");
+      },
+    });
   };
 
   return (
@@ -258,11 +261,11 @@ export default function CommunityWrite() {
               취소
             </BtnBasic>
             <BtnBasic
-              variant={isFormValid ? "blue" : "gray"}
+              variant={isFormValid && !isPending ? "blue" : "gray"}
               onClick={handleSubmit}
-              disabled={!isFormValid}
+              disabled={!isFormValid || isPending}
             >
-              등록
+              {isPending ? "등록 중..." : "등록"}
             </BtnBasic>
           </div>
         </div>

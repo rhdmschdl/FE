@@ -3,7 +3,7 @@ import type { Ticket } from "@/types/ticket";
 import TicketCard from "./TicketCard";
 import TicketEmptyCard from "./TicketEmptyCard";
 import { useNavigate } from "react-router-dom";
-import ticketbook from "@/assets/images/ticketbook.png";
+import TicketBookBackground from "./TicketBookBackground";
 import { Pencil, PlusIcon, X } from "lucide-react";
 import { BtnIcon } from "@/components/common/Button/Btn";
 import TrashIcon from "@/assets/icon/TrashIcon";
@@ -148,12 +148,7 @@ export default function TicketBook({
 
       {/* 티켓북 배경 래퍼 */}
       <div className="relative w-full px-[55px] py-[49px] max-w-310 h-252.5">
-        <img
-          src={ticketbook}
-          alt="티켓북 배경"
-          className="absolute inset-0 w-full h-252.5 object-cover pointer-events-none"
-          style={{ zIndex: 0 }}
-        />
+        <TicketBookBackground />
         <div className="relative z-10">
           <div className="grid grid-cols-2 gap-x-[235px] gap-y-6.5 place-items-center">
             {placed.map((slotTicket, idx) => {

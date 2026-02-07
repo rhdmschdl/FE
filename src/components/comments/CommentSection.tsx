@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
 import CommentInput from "./CommentInput";
 import CommentItem from "./CommentItem";
@@ -6,11 +6,11 @@ import type { CommentModel } from "./CommentItem";
 import ButtonLike from "../archive/ButtonLike";
 import ProfileBadge from "../common/ProfileBadge";
 import type { User } from "@/types/user";
-import togglePostLike from "@/apis/mutations/community/toggleLike";
-import fetchPostComments from "@/apis/queries/community/getComments";
+import { useToggleLike } from "@/apis/mutations/community/useToggleLike";
+import { useGetComments } from "@/apis/queries/community/useGetComments";
 import type { ServerCommentDto } from "@/apis/queries/community/getComments";
-import createCommentApi from "@/apis/mutations/community/createComments";
-import deleteCommentApi from "@/apis/mutations/community/deleteComment";
+import { useCreateComment } from "@/apis/mutations/community/useCreateComment";
+import { useDeleteComment } from "@/apis/mutations/community/useDeleteComment";
 
 type CommentModelLocal = {
   id: string;
@@ -47,26 +47,23 @@ export default function CommentSection({
   const [open, setOpen] = useState(true); // 댓글 섹션 기본 열림
   const [input, setInput] = useState("");
 
-  // 댓글 페이징 / 로딩 상태
-  const [, setSubmittingComment] = useState(false);
-  const [, setSubmittingReplyFor] = useState<string | null>(null);
-  const [, setDeletingCommentId] = useState<string | number | null>(null);
-  const [, setLoadingComments] = useState<boolean>(false);
-  const [, setCommentsPage] = useState<number>(0);
+  // 훅 사용
+  const { mutate: toggleLike, isPending: pendingLike } = useToggleLike(postId);
+  const { mutate: createComment, isPending: isCreatingComment } = useCreateComment(postId);
+  const { mutate: deleteCommentMutate, isPending: isDeletingComment } = useDeleteComment(postId);
+  const { data: commentsData, refetch: refetchComments } = useGetComments(postId, { page: 0, size: 20 });
 
   // 좋아요 관련 상태
   const [likeCount, setLikeCount] = useState<number>(initialLikeCount);
   const [isLiked, setIsLiked] = useState<boolean>(initialIsLiked);
-  const [pendingLike, setPendingLike] = useState<boolean>(false);
 
   // 좋아요 토글 핸들러 (낙관적 업데이트 + 실패 롤백)
-  const handleToggleLike = async () => {
+  const handleToggleLike = () => {
     if (!postId) {
       console.warn("postId가 없어 좋아요를 요청할 수 없습니다.");
       return;
     }
     if (pendingLike) return;
-    setPendingLike(true);
 
     const prevLiked = isLiked;
     const prevCount = likeCount;
@@ -75,27 +72,27 @@ export default function CommentSection({
     setIsLiked(!prevLiked);
     setLikeCount(prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1);
 
-    try {
-      const res = await togglePostLike(postId);
-      if (res?.likeCount !== undefined) setLikeCount(res.likeCount);
-      if (typeof res?.liked === "boolean") setIsLiked(res.liked);
-      if (typeof res?.isLiked === "boolean") setIsLiked(res.isLiked);
-    } catch (err: any) {
-      // 롤백
-      setIsLiked(prevLiked);
-      setLikeCount(prevCount);
+    toggleLike(postId, {
+      onSuccess: (res) => {
+        if (res?.likeCount !== undefined) setLikeCount(res.likeCount);
+        if (typeof res?.liked === "boolean") setIsLiked(res.liked);
+        if (typeof res?.isLiked === "boolean") setIsLiked(res.isLiked);
+      },
+      onError: (err: any) => {
+        // 롤백
+        setIsLiked(prevLiked);
+        setLikeCount(prevCount);
 
-      console.error("좋아요 요청 실패:", err);
-      if (err?.response?.status === 401) {
-        alert("로그인이 필요합니다. 로그인 후 다시 시도해 주세요.");
-      } else {
-        alert(
-          "좋아요 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
-        );
-      }
-    } finally {
-      setPendingLike(false);
-    }
+        console.error("좋아요 요청 실패:", err);
+        if (err?.response?.status === 401) {
+          alert("로그인이 필요합니다. 로그인 후 다시 시도해 주세요.");
+        } else {
+          alert(
+            "좋아요 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+          );
+        }
+      },
+    });
   };
 
   // 서버 DTO -> CommentModelLocal 재귀 변환
@@ -177,52 +174,17 @@ export default function CommentSection({
     };
   };
 
-  // 댓글 로드 함수 (page 기반)
-  const loadComments = useCallback(
-    async (
-      opts: {
-        page?: number;
-        size?: number;
-        lastCommentId?: string | number;
-      } = {}
-    ) => {
-      if (!postId) return;
-      setLoadingComments(true);
+  // commentsData 변경 시 댓글 상태 동기화
+  useEffect(() => {
+    if (commentsData?.content) {
+      const mapped = commentsData.content.map(mapServerCommentToModel);
+      setComments(mapped);
+    }
+  }, [commentsData]);
 
-      try {
-        const page = opts.page ?? 0;
-        const size = opts.size ?? 20;
-        const res = await fetchPostComments(postId, {
-          page,
-          size,
-          lastCommentId: opts.lastCommentId,
-        });
-        const mapped = (res.content ?? []).map(mapServerCommentToModel);
-
-        if (page === 0) {
-          setComments(mapped);
-        } else {
-          setComments((prev) => [...prev, ...mapped]);
-        }
-
-        setCommentsPage(page);
-      } catch (err: any) {
-        console.error("댓글 로드 실패:", err);
-      } finally {
-        setLoadingComments(false);
-      }
-    },
-    [postId]
-  );
-
-  // postId 변경 시 초기 로드
+  // postId 변경 시 초기화
   useEffect(() => {
     setComments(initialComments);
-    setCommentsPage(0);
-
-    if (postId) {
-      loadComments({ page: 0, size: 20 });
-    }
   }, [postId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 댓글 개수 (원댓글 + 답글 모두 합산)
@@ -267,29 +229,30 @@ export default function CommentSection({
     return `${y}.${m}.${dd}`;
   }
 
-  const handleSubmitComment = async () => {
-    if (!input.trim() || !postId) return;
+  const handleSubmitComment = () => {
+    if (!input.trim() || !postId || isCreatingComment) return;
     const content = input.trim();
-    setSubmittingComment(true);
 
-    try {
-      // parentId null => 원댓글
-      await createCommentApi({ postId, content, parentId: null });
-      await loadComments({ page: 0, size: 20 });
-      setInput("");
-    } catch (err: any) {
-      console.error("원댓글 등록 실패:", err);
-      alert(
-        err?.response?.data?.message ?? "댓글 등록 중 오류가 발생했습니다."
-      );
-    } finally {
-      setSubmittingComment(false);
-    }
+    createComment(
+      { postId, content, parentId: null },
+      {
+        onSuccess: () => {
+          setInput("");
+          refetchComments();
+        },
+        onError: (err: any) => {
+          console.error("원댓글 등록 실패:", err);
+          alert(
+            err?.response?.data?.message ?? "댓글 등록 중 오류가 발생했습니다."
+          );
+        },
+      }
+    );
   };
 
   // 답글 등록
-  const handleAddReply = async (parentLocalId: string, text: string) => {
-    if (!text.trim() || !postId) return;
+  const handleAddReply = (parentLocalId: string, text: string) => {
+    if (!text.trim() || !postId || isCreatingComment) return;
     const trimmed = text.trim();
 
     // 부모 serverId 확보
@@ -302,31 +265,30 @@ export default function CommentSection({
     }
     const parentIdForApi = maybeNum;
 
-    setSubmittingReplyFor(String(parentIdForApi));
-    try {
-      await createCommentApi({
-        postId,
-        content: trimmed,
-        parentId: parentIdForApi,
-      });
-      // 성공 시 전체 목록 재로딩
-      await loadComments({ page: 0, size: 20 });
-    } catch (err: any) {
-      console.error("답글 등록 실패:", err);
-      alert(
-        err?.response?.data?.message ?? "답글 등록 중 오류가 발생했습니다."
-      );
-    } finally {
-      setSubmittingReplyFor(null);
-    }
+    createComment(
+      { postId, content: trimmed, parentId: parentIdForApi },
+      {
+        onSuccess: () => {
+          refetchComments();
+        },
+        onError: (err: any) => {
+          console.error("답글 등록 실패:", err);
+          alert(
+            err?.response?.data?.message ?? "답글 등록 중 오류가 발생했습니다."
+          );
+        },
+      }
+    );
   };
 
   // 삭제
-  const deleteImmediate = async (
+  const deleteImmediate = (
     id: string,
     isReply: boolean,
     parentId?: string
   ) => {
+    if (isDeletingComment) return;
+
     const target = comments.find((c) => c.id === id);
     const serverId =
       target?.serverId ??
@@ -346,19 +308,16 @@ export default function CommentSection({
       return;
     }
 
-    setDeletingCommentId(serverId);
-    try {
-      await deleteCommentApi(serverId);
-      // 성공하면 전체 재로딩으로 일관성 보장
-      await loadComments({ page: 0, size: 20 });
-    } catch (err: any) {
-      console.error("댓글 삭제 실패:", err);
-      alert(err?.response?.data?.message ?? "댓글 삭제에 실패했습니다.");
-      // 실패 시 목록 재동기화로 상태 복원
-      await loadComments({ page: 0, size: 20 });
-    } finally {
-      setDeletingCommentId(null);
-    }
+    deleteCommentMutate(serverId, {
+      onSuccess: () => {
+        refetchComments();
+      },
+      onError: (err: any) => {
+        console.error("댓글 삭제 실패:", err);
+        alert(err?.response?.data?.message ?? "댓글 삭제에 실패했습니다.");
+        refetchComments();
+      },
+    });
   };
 
   return (

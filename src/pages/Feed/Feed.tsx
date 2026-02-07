@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const FEED_OPTIONS: SelectBoxOption[] = [
+const FEED_OPTIONS: SelectBoxOption<Sort>[] = [
   { label: "최신순", value: Sort.CREATED_AT },
   { label: "조회수 순", value: Sort.VIEW_COUNT },
   { label: "좋아요 순", value: Sort.LIKE_COUNT },
