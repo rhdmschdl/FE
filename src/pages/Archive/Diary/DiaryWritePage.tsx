@@ -169,14 +169,14 @@ const DiaryWritePage = () => {
         </div>
 
         {/* 날짜 선택 및 일기 내용 */}
-        <div className="w-310 flex flex-col gap-15">
+        <div className="w-310 flex flex-col gap-15 ">
           <div className="flex gap-5 items-center w-full">
-            <p className="text-center typo-h1 text-color-high">날짜 : </p>
+            <p className="text-center typo-h1 font-hakgyoansim-b text-color-high">날짜 : </p>
             <DatePicker
               value={recordedAt}
               onChange={(date) => setRecordedAt(date || "")}
               placeholder="날짜 입력"
-              className="flex-1 w-50 justify-center items-center"
+              className="flex-1 w-50 justify-center items-center font-hakgyoansim-b"
             />
           </div>
 
@@ -211,7 +211,7 @@ const DiaryWritePage = () => {
       </div>
 
       <DiaryFooter
-        onEdit={() => {}}
+        onEdit={() => { }}
         onSave={handleSave}
         onCancel={() => navigate(-1)}
         isDisabled={!isFormValid || isUploading}

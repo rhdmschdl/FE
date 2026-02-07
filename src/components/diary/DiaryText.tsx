@@ -21,7 +21,7 @@ const DiaryText = ({
     <div className="relative">
       <DiaryMemo color={color} className="absolute top-0 left-0" />
       <div
-        className="relative ml-[100px] mt-[65px] w-[1133px] h-[1133px] px-27.5 py-17
+        className="relative ml-[107px] mt-[110px] w-[1133px] h-[1133px] px-27.5 py-17
       bg-[#F9FAFB] shadow-[0_4px_15px_0_rgba(0,0,0,0.15)]"
       >
         <div className="flex flex-col gap-10 items-center justify-center">
@@ -31,7 +31,7 @@ const DiaryText = ({
             value={title}
             onChange={(e) => onTitleChange?.(e.target.value)}
             placeholder="제목을 입력하세요"
-            className="w-full outline-none text-[40px] font-bold text-color-high placeholder:text-color-mid"
+            className="w-full outline-none text-[40px] font-hakgyoansim-b text-color-high placeholder:text-color-mid"
             readOnly={!isEditable} // 편집 모드가 아니면 읽기 전용
             disabled={!isEditable} // 편집 모드가 아니면 비활성화
           />
@@ -41,7 +41,7 @@ const DiaryText = ({
             value={content}
             onChange={(e) => onContentChange?.(e.target.value)}
             placeholder="일기 내용을 입력하세요"
-            className="w-full max-h-225 outline-none text-[30px] font-light text-color-highest placeholder:text-color-mid bg-transparent resize-none"
+            className="w-full max-h-225 outline-none text-[36px] font-hakgyoansim-l text-color-highest placeholder:text-color-mid bg-transparent resize-none"
             rows={18}
             readOnly={!isEditable} // 편집 모드가 아니면 읽기 전용
             disabled={!isEditable} // 편집 모드가 아니면 비활성화

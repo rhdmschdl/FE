@@ -269,7 +269,7 @@ const DiaryDetailPage = () => {
         {/* 날짜 선택 및 일기 내용 */}
         <div className="w-310 flex flex-col gap-15">
           <div className="flex gap-5 items-center w-full">
-            <p className="text-center typo-h1 text-color-high">날짜 : </p>
+            <p className="text-center typo-h1 font-hakgyoansim-b text-color-high">날짜 : </p>
             {isOwner && isEditMode ? (
               <DatePicker
                 value={recordedAt}
@@ -278,7 +278,7 @@ const DiaryDetailPage = () => {
                 className="flex-1 w-50 justify-center items-center"
               />
             ) : (
-              <p className="text-center text-[40px] font-light text-color-high">
+              <p className="text-center text-[40px] font-hakgyoansim-l text-color-high">
                 {dayjs(recordedAt).format("YYYY.MM.DD")}
               </p>
             )}
