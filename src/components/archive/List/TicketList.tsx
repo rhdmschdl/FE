@@ -40,7 +40,6 @@ const TicketList = ({
         title="티켓북"
         onClick={handleNavigateToTicketBook}
         isMore={hasTickets}
-        isEditable={isOwner}
       />
       {hasTickets ? (
         <div className="w-full flex flex-col items-start gap-[60px]">

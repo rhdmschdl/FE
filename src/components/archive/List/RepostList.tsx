@@ -41,7 +41,6 @@ const RepostList = ({
         title="덕질 리포스트"
         onClick={handleNavigateToRepost}
         isMore={hasRepost}
-        isEditable={isOwner}
       />
       {hasRepost ? (
         <div className="w-full flex flex-col items-start gap-[60px]">

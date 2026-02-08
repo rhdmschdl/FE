@@ -47,7 +47,6 @@ const DiaryList = ({
         title="덕질 일기"
         onClick={handleNavigateToDiary}
         isMore={hasDiary}
-        isEditable={isOwner}
       />
       {hasDiary ? (
         <div className="w-full flex flex-col items-start gap-[60px]">

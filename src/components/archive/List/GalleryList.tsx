@@ -41,7 +41,6 @@ const GalleryList = ({
         title="덕질 갤러리"
         onClick={handleNavigateToGallery}
         isMore={hasGallery}
-        isEditable={isOwner}
       />
       {hasGallery ? (
         <div className="w-full flex flex-col items-start gap-[60px]">
