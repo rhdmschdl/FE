@@ -29,7 +29,6 @@ import SocialCallback from "@/pages/Auth/socialCallback";
 import DiaryWritePage from "@/pages/Archive/Diary/DiaryWritePage";
 import DiaryDetailPage from "@/pages/Archive/Diary/DiaryDetailPage";
 import DiaryPage from "@/pages/Archive/Diary/DiaryPage";
-import SampleArchiveDetail from "@/pages/Archive/SampleArchiveDetail";
 
 const router = createBrowserRouter([
   // 🔓 Public Routes (누구나 접근 가능)
@@ -47,7 +46,6 @@ const router = createBrowserRouter([
       { path: "archive/:archiveId/ticket-book", element: <TicketBookPage /> },
       { path: "archive/:archiveId/gallery", element: <Gallery /> },
       { path: "archive/:archiveId/repost", element: <RepostingPage /> },
-      { path: "sample-archive/:archiveId", element: <SampleArchiveDetail /> },
       { path: "*", element: <NotFound /> },
     ],
   },

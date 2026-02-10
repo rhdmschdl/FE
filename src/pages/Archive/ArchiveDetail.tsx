@@ -21,6 +21,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { MediaRole } from "@/enums/mediaRole";
 import { useRef, useState } from "react";
 import ConfirmModal from "@/components/common/ConfirmModal";
+import ArchiveDetailSkeleton from "@/components/archive/ArchiveDetailSkeleton";
 
 const ArchiveDetail = () => {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ const ArchiveDetail = () => {
   const uploadInProgressRef = useRef(false);
 
   // 아카이브 상세 조회
-  const { data: archive } = useQuery({
+  const { data: archive, isLoading } = useQuery({
     queryKey: ["archive", archiveIdNum],
     queryFn: () => GetArchiveDetail(archiveIdNum),
     retry: false,
@@ -156,6 +157,10 @@ const ArchiveDetail = () => {
   const handleDeleteArchive = () => {
     deleteArchiveMutation.mutate();
   };
+
+  if (isLoading) {
+    return <ArchiveDetailSkeleton />;
+  }
 
   return (
     <div className="flex flex-col items-center justify-center">

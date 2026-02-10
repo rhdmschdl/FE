@@ -1,5 +1,5 @@
 import { CreateArchive } from "@/apis/mutations/archive/archive";
-import { GetArchiveFeed } from "@/apis/queries/archive/getArchive";
+import { GetArchiveFeed, GetUserArchive } from "@/apis/queries/archive/getArchive";
 import { useGetPosts } from "@/apis/queries/community/useGetPosts";
 import ArchiveCard from "@/components/archive/ArchiveCard";
 import ArchiveTitle from "@/components/archive/ArchiveTitle";
@@ -7,18 +7,17 @@ import CommunityCard from "@/components/community/CommunityCard";
 import FeedCard from "@/components/feed/FeedCard";
 import { Sort } from "@/enums/sort";
 import { CommunitySortBy } from "@/enums/communitySortBy";
-import { archiveDataMock } from "@/mockData/archiveData";
 import { Visibility, type CreateArchiveRequest } from "@/types/archive";
 import { mapCategoryToLabel } from "@/utils/categoryMapper";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { SHARE_BASE_URL } from "@/constants/urls";
 import { useClipboard } from "@/hooks/useClipboard";
+import { useAuthStore } from "@/store/useAuthStore";
 
 const Home = () => {
   const navigate = useNavigate();
-
-  const sampleArchiveData = archiveDataMock.slice(0, 2);
+  const currentUser = useAuthStore((state) => state.user);
 
   const createArchiveMutation = useMutation({
     mutationFn: (data: CreateArchiveRequest) => CreateArchive(data),
@@ -30,6 +29,25 @@ const Home = () => {
       console.log("createArchive error", error);
       alert("아카이브 생성에 실패했습니다. 다시 시도해주세요.");
     },
+  });
+
+  // ✅ 1. 내 아카이브 조회 쿼리 추가
+  const { data: myArchiveData } = useQuery({
+    queryKey: ["myArchive", currentUser?.id],
+    queryFn: () => GetUserArchive(currentUser!.id, { page: 0, size: 2 }), // 최대 2개만 가져옴
+    enabled: !!currentUser, // 로그인 했을 때만 실행
+  });
+
+  // ✅ 2. 핫피드 쿼리 수정 (size 3 -> 5)
+  const { data: hotArchiveData } = useQuery({
+    queryKey: ["hotArchive"],
+    queryFn: () =>
+      GetArchiveFeed({
+        page: 0,
+        size: 5, // 5개 가져오기 (1~3위: 하단용, 4~5위: 상단 추천용)
+        sort: Sort.HOT_SCORE,
+        direction: "DESC",
+      }),
   });
 
   const handleCreateArchive = () => {
@@ -67,6 +85,15 @@ const Home = () => {
   };
 
   const hotFeed = hotFeedData?.content ?? [];
+  const hotArchive = hotArchiveData?.content ?? [];
+  const myArchive = myArchiveData?.content ?? [];
+  // ✅ 3. 보여줄 데이터 결정 로직
+  // 로그인하지 않았거나 내 아카이브가 없으면 -> 핫피드 4,5위 사용
+  const isMyArchiveEmpty = !currentUser || myArchive.length === 0;
+
+  const displayArchives = isMyArchiveEmpty
+    ? hotArchive.slice(3, 5) // 4, 5위 데이터 (index 3, 4)
+    : myArchive;
 
   return (
     <div className="flex flex-col items-center justify-center my-15">
@@ -90,15 +117,23 @@ const Home = () => {
                   handleCreateArchive();
                 }}
               />
-              {sampleArchiveData.map((sampleArchive) => (
+              {/* ✅ 조건부 데이터 렌더링 */}
+              {displayArchives.map((archive) => (
                 <ArchiveCard
-                  key={sampleArchive.archiveId}
-                  archiveId={sampleArchive.archiveId}
-                  image={sampleArchive.bannerUrl}
+                  key={archive.archiveId}
+                  archiveId={archive.archiveId}
+                  image={archive.thumbnailUrl} // API 응답 필드명 확인 (thumbnailUrl 사용)
                   isEditMode={false}
-                  title={sampleArchive.title}
+                  title={archive.title}
                   onClick={() => {
-                    navigate(`/sample-archive/${sampleArchive.archiveId}`);
+                    // ✅ 클릭 시 이동 경로 분기 처리
+                    if (isMyArchiveEmpty) {
+                      // 추천(남의 것)이면 피드 상세로 이동
+                      navigate(`/archive/${archive.archiveId}`);
+                    } else {
+                      // 내 것이면 아카이브 상세로 이동
+                      navigate(`/archive/${archive.archiveId}`);
+                    }
                   }}
                 />
               ))}

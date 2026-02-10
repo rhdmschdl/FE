@@ -13,6 +13,7 @@ import { GetArchiveDetail } from "@/apis/queries/archive/getArchive";
 import { LikeArchive } from "@/apis/mutations/archive/archive";
 import type { ArchiveResponse } from "@/types/archive";
 import { useAuthStore } from "@/store/useAuthStore";
+import ArchiveDetailSkeleton from "@/components/archive/ArchiveDetailSkeleton";
 
 const FeedDetail = () => {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ const FeedDetail = () => {
 
   const userId = useAuthStore((state) => state.user?.id);
 
-  const { data: feed } = useQuery({
+  const { data: feed, isLoading } = useQuery({
     queryKey: ["feed", archiveId],
     queryFn: () => GetArchiveDetail(Number(archiveId)),
   });
@@ -45,7 +46,9 @@ const FeedDetail = () => {
       alert("좋아요에 실패했습니다. 다시 시도해주세요.");
     },
   });
-
+  if (isLoading) {
+    return <ArchiveDetailSkeleton />;
+  }
   return (
     <div className="flex flex-col items-center justify-center">
       <Banner image={feed?.bannerUrl ?? ""} />
