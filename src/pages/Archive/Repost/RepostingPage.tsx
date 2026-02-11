@@ -56,6 +56,9 @@ export default function RepostingPage() {
   const [thumbnailLoaded, setThumbnailLoaded] = useState<
     Record<string, boolean>
   >({});
+  const [thumbnailFailed, setThumbnailFailed] = useState<
+    Record<string, boolean>
+  >({});
 
   // React Query 훅들
   // content 조회는 activeTabId + page(0-based)
@@ -153,13 +156,15 @@ export default function RepostingPage() {
         const id = String(serverId ?? "");
         const thumbnailUrl: string | undefined = item.thumbnailUrl;
         if (!thumbnailUrl) return;
-        if (thumbnailLoaded[id]) return;
+        if (thumbnailLoaded[id] || thumbnailFailed[id]) return;
 
         const img = new Image();
         img.onload = () => {
           setThumbnailLoaded((prev) => ({ ...prev, [id]: true }));
         };
-        img.onerror = () => {};
+        img.onerror = () => {
+          setThumbnailFailed((prev) => ({ ...prev, [id]: true }));
+        };
         img.src = thumbnailUrl;
       });
     };
@@ -168,14 +173,16 @@ export default function RepostingPage() {
 
     const hasPending = content.some((it: any) => {
       const sid = String(it.id ?? it.postId ?? "");
-      return it.thumbnailUrl && !thumbnailLoaded[sid];
+      return (
+        it.thumbnailUrl && !thumbnailLoaded[sid] && !thumbnailFailed[sid]
+      );
     });
 
     if (hasPending) {
       const timer = window.setInterval(tryLoadThumbnails, 3000);
       return () => clearInterval(timer);
     }
-  }, [repostData?.content, thumbnailLoaded]);
+  }, [repostData?.content, thumbnailLoaded, thumbnailFailed]);
 
   // 서버가 PENDING 상태인 항목이 있으면 리프레시 폴링
   // 폴링은 리소스 문제를 고려해 짧게(3초) 반복
@@ -553,7 +560,15 @@ export default function RepostingPage() {
                 {pagedItems.map((it) => {
                   const checked = !!checkedMap[it.id];
                   const status = (it.status ?? "").toString().toUpperCase();
-                  const isPending = status === "PENDING";
+                  const isPending =
+                    status === "PENDING" || status === "PROCESSING";
+                  // 이미지 URL이 있는데 아직 로드 안 됐고 실패도 안 했으면 로딩 표시
+                  const isImageLoading =
+                    !!it.image &&
+                    !thumbnailLoaded[it.id] &&
+                    !thumbnailFailed[it.id];
+                  const showLoading = isPending || isImageLoading;
+                  // 이미지 로드 성공한 경우에만 이미지 표시, 실패하면 기본 이미지
                   const imgForCard =
                     it.image && thumbnailLoaded[it.id] ? it.image : undefined;
                   return (
@@ -562,9 +577,9 @@ export default function RepostingPage() {
                         id={it.repostId ? Number(it.repostId) : 0}
                         archiveId={Number(archiveId) || 0}
                         tabId={activeTabId ? Number(activeTabId) : undefined}
-                        title={isPending ? undefined : it.title}
-                        image={isPending ? undefined : imgForCard}
-                        isLoading={isPending}
+                        title={showLoading ? undefined : it.title}
+                        image={showLoading ? undefined : imgForCard}
+                        isLoading={showLoading}
                         onClick={() => handleCardClick(it)}
                       />
 

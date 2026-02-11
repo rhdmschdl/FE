@@ -12,13 +12,21 @@ import { useMutation } from "@tanstack/react-query";
 import { login } from "@/apis/mutations/auth/login";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Eye, EyeOff } from "lucide-react";
+import { AxiosError } from "axios";
 
 const schema = z.object({
   email: z.string().email({ message: "이메일 형식이 올바르지 않습니다." }),
   password: z
     .string()
     .min(8, { message: "비밀번호는 8자 이상이어야 합니다." })
-    .max(16, { message: "비밀번호는 16자 이하이어야 합니다." }),
+    .max(16, { message: "비밀번호는 16자 이하이어야 합니다." })
+    .regex(
+      /^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]{8,16}$/,
+      {
+        message:
+          "8 ~ 16자 이내 영문, 숫자, 특수문자를 모두 포함하여 입력해주세요.",
+      }
+    ),
 });
 
 type FormFields = z.infer<typeof schema>;
@@ -66,7 +74,7 @@ const LoginPage = () => {
     mutationFn: login,
     onSuccess: (data) => {
       console.log("로그인 성공:", data);
-      // ✅ Writer : 일반 로그인 정보를 localStorage에 저장
+      // Writer : 일반 로그인 정보를 localStorage에 저장
       localStorage.setItem("loginType", "GENERAL");
       localStorage.removeItem("provider"); // 소셜 정보 제거
       loginUser({
@@ -79,6 +87,10 @@ const LoginPage = () => {
     },
     onError: (error) => {
       console.error("로그인 실패:", error);
+      if (error instanceof AxiosError && error.response?.status === 429) {
+        alert("요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
       setLoginError(
         "아이디(이메일) 또는 비밀번호가 일치하지 않습니다. 올바른 정보를 입력해주세요."
       );
@@ -93,7 +105,7 @@ const LoginPage = () => {
     });
   };
 
-  // ✅ 입력 변경 시 에러 초기화
+  // 입력 변경 시 에러 초기화
   const handleInputChange = () => {
     if (loginError) {
       setLoginError("");
@@ -101,22 +113,25 @@ const LoginPage = () => {
   };
 
   const handleSocialLogin = (provider: string) => {
-    // ✅ Writer : 소셜 로그인 정보를 localStorage에 저장
+    // Writer : 소셜 로그인 정보를 localStorage에 저장
     localStorage.setItem("provider", provider); // 'naver', 'kakao', 'google' 저장
     localStorage.setItem("loginType", "SOCIAL");
 
     switch (provider) {
       case "google":
-        window.location.href = `${import.meta.env.VITE_API_BASE
-          }/oauth2/authorization/google?prompt=login`;
+        window.location.href = `${
+          import.meta.env.VITE_API_BASE
+        }/oauth2/authorization/google?prompt=login`;
         break;
       case "kakao":
-        window.location.href = `${import.meta.env.VITE_API_BASE
-          }/oauth2/authorization/kakao?prompt=login`;
+        window.location.href = `${
+          import.meta.env.VITE_API_BASE
+        }/oauth2/authorization/kakao?prompt=login`;
         break;
       case "naver":
-        window.location.href = `${import.meta.env.VITE_API_BASE
-          }/oauth2/authorization/naver?prompt=login`;
+        window.location.href = `${
+          import.meta.env.VITE_API_BASE
+        }/oauth2/authorization/naver?prompt=login`;
     }
   };
 
@@ -158,7 +173,7 @@ const LoginPage = () => {
                 autoComplete="new-password"
                 onChange={(e) => {
                   register("password").onChange(e);
-                  handleInputChange(); // ✅ 추가: 입력 시 에러 초기화
+                  handleInputChange(); // 추가: 입력 시 에러 초기화
                 }}
               />
               {isPasswordVisible ? (

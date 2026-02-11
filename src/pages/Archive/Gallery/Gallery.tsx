@@ -8,6 +8,7 @@ import CheckboxIcon from "@/assets/icon/CheckboxIcon";
 import { Pencil, X, Camera } from "lucide-react";
 import TrashIcon from "@/assets/icon/TrashIcon";
 import { useFileUpload } from "@/hooks/useFileUpload";
+import ImageModal from "@/components/gallery/ImageModal";
 
 import { useGetGallery } from "@/apis/queries/gallery/useGetGallery";
 import { useDeleteGallery } from "@/apis/mutations/gallery/useDeleteGallery";
@@ -45,6 +46,12 @@ export default function Gallery() {
   const { mutateAsync: updateGalleryTitle } = useUpdateGallery();
   const { mutateAsync: addGallery, isPending: isAdding } = useAddGallery();
 
+  // 이미지 모달 상태
+  const [selectedImage, setSelectedImage] = useState<{
+    url: string;
+    fileName?: string;
+  } | null>(null);
+
   // 서버 응답 기반 photos
   const photos = useMemo(() => {
     return (data?.content ?? []).map((it: any) => {
@@ -54,7 +61,12 @@ export default function Gallery() {
         it.thumbnailUrl && thumbnailLoaded[id]
           ? it.thumbnailUrl
           : (it.originalUrl ?? it.thumbnailUrl ?? "");
-      return { id, url, fileName: it.fileName ?? undefined };
+      return {
+        id,
+        url,
+        originalUrl: it.originalUrl ?? it.thumbnailUrl ?? "",
+        fileName: it.fileName ?? undefined,
+      };
     });
   }, [data?.content, thumbnailLoaded]);
 
@@ -329,7 +341,19 @@ export default function Gallery() {
       <div className="grid grid-cols-3 gap-x-20 gap-y-15 mb-15 w-310">
         {photos.map((p) => (
           <div key={p.id} className="relative group">
-            <div className="w-90 h-75 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+            <div
+              className={`w-90 h-75 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100 ${
+                !isEditing && p.url ? "cursor-pointer" : ""
+              }`}
+              onClick={() => {
+                if (!isEditing && p.originalUrl) {
+                  setSelectedImage({
+                    url: p.originalUrl,
+                    fileName: p.fileName,
+                  });
+                }
+              }}
+            >
               {p.url ? (
                 <img
                   src={p.url}
@@ -354,6 +378,15 @@ export default function Gallery() {
           </div>
         ))}
       </div>
+
+      {/* 이미지 모달 */}
+      <ImageModal
+        open={!!selectedImage}
+        imageUrl={selectedImage?.url ?? ""}
+        fileName={selectedImage?.fileName}
+        alt={selectedImage?.fileName}
+        onClose={() => setSelectedImage(null)}
+      />
 
       {/* 페이지네이션 */}
       <div className="flex justify-center mb-12">

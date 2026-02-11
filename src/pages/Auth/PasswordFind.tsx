@@ -14,10 +14,13 @@ const passwordSchema = z
   .object({
     password: z
       .string()
-      .regex(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,16}$/, {
-        message:
-          "비밀번호는 8~16자의 영문, 숫자, 특수문자를 모두 포함해야 합니다.",
-      }),
+      .regex(
+        /^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]{8,16}$/,
+        {
+          message:
+            "비밀번호는 8~16자의 영문, 숫자, 특수문자를 모두 포함해야 합니다.",
+        }
+      ),
     passwordCheck: z.string(),
   })
   .refine((data) => data.password === data.passwordCheck, {

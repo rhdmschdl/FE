@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useMutation } from "@tanstack/react-query";
 import { withdraw } from "@/apis/mutations/auth/logout";
 import { useLogout } from "@/hooks/useLogout";
+import { useUpdateUser } from "@/apis/mutations/user/usePatchUser";
 
 function maskEmail(email?: string | null) {
   if (!email) return "";
@@ -55,6 +56,8 @@ export default function MyInfoPage() {
   // });
   const { handleLogout } = useLogout();
   const clearAuth = useAuthStore((state) => state.clearAuth);
+  const setUser = useAuthStore((state) => state.setUser);
+  const updateUserMutation = useUpdateUser();
 
   const withdrawMutation = useMutation({
     mutationFn: withdraw,
@@ -116,16 +119,20 @@ export default function MyInfoPage() {
             className="gap-5"
             nameClassName="typo-h1 text-color-high"
             editable={true}
-            onRename={async (_next) => {
-              // 프로젝트 API 함수로 교체
+            onRename={async (next) => {
               try {
-                // await api.updateNickname(next);
-                // 성공하면 사용자 정보 갱신(refetch)
-                // await refetchUser();
+                const response = await updateUserMutation.mutateAsync({
+                  nickname: next,
+                });
+                if (currentUser) {
+                  setUser({
+                    ...currentUser,
+                    nickname: response.nickname ?? currentUser.nickname,
+                  });
+                }
               } catch (err) {
-                // 에러 처리
                 console.error(err);
-                throw err; // ProfileBadge가 alert을 띄울 수 있도록 예외 재전달
+                throw err;
               }
             }}
           />

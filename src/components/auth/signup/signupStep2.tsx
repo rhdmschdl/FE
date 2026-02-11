@@ -239,7 +239,7 @@ const SignupStep2 = ({
             text-color-highest placeholder:text-color-low outline-none
             focus:border-brand-blue-400
             ${errors.nickname ? "border-border-accent" : "border-border-mid"}`}
-          placeholder="닉네임 (2~10자 이내 한글, 영어 숫자 중에 작성해주세요.)"
+          placeholder="닉네임 (2~10자 이내 한글, 영어, 숫자, -, _ 중에 작성해주세요.)"
           onBlur={handleNicknameBlur}
         />
         {errors.nickname && (

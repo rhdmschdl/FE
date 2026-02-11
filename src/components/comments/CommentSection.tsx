@@ -179,13 +179,11 @@ export default function CommentSection({
     if (commentsData?.content) {
       const mapped = commentsData.content.map(mapServerCommentToModel);
       setComments(mapped);
+    } else if (commentsData && !commentsData.content) {
+      // 데이터가 로드됐지만 댓글이 없는 경우
+      setComments([]);
     }
-  }, [commentsData]);
-
-  // postId 변경 시 초기화
-  useEffect(() => {
-    setComments(initialComments);
-  }, [postId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [commentsData, postId]);
 
   // 댓글 개수 (원댓글 + 답글 모두 합산)
   const commentCount = useMemo(() => {

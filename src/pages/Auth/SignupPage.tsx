@@ -12,28 +12,38 @@ import {
   registerUser,
   sendVerificationCode,
 } from "@/apis/mutations/auth/signup";
+import { AxiosError } from "axios";
 
-// ✅ Step 2 스키마 (이메일, 비밀번호, 닉네임)
+// Step 2 스키마 (이메일, 비밀번호, 닉네임)
 export const schema = z
   .object({
     emailId: z.string(),
     emailDomain: z.string(),
     password: z
       .string()
-      .regex(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,16}$/, {
-        message:
-          "8 ~ 16자 이내 영문, 숫자, 특수문자를 모두 포함하여 입력해주세요.",
-      }),
+      .min(8, { message: "비밀번호는 8자 이상이어야 합니다." })
+      .max(16, { message: "비밀번호는 16자 이하여야 합니다." })
+      .regex(
+        /^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]{8,16}$/,
+        {
+          message:
+            "8 ~ 16자 이내 영문, 숫자, 특수문자를 모두 포함하여 입력해주세요.",
+        }
+      ),
     passwordCheck: z.string(),
     nickname: z
       .string()
-      .min(2, { message: "2~10자 이내 한글, 영어, 숫자 중에 작성해 주세요." }),
+      .min(2, { message: "2~10자 이내 한글, 영어, 숫자, -, _ 중에 작성해 주세요." })
+      .max(10, { message: "2~10자 이내 한글, 영어, 숫자, -, _ 중에 작성해 주세요." })
+      .regex(/^[가-힣a-zA-Z0-9-_]+$/, {
+        message: "2~10자 이내 한글, 영어, 숫자, -, _ 중에 작성해 주세요.",
+      }),
   })
   .refine((data) => data.password === data.passwordCheck, {
     message: "비밀번호가 일치하지 않습니다.",
     path: ["passwordCheck"],
   })
-  // ✅ 이메일 합쳐서 검증
+  // 이메일 합쳐서 검증
   .refine(
     (data) => {
       const email = `${data.emailId}@${data.emailDomain}`;
@@ -50,7 +60,7 @@ export type FormFields = z.infer<typeof schema>;
 
 const SignupPage = () => {
   const navigate = useNavigate();
-  // ✅ 회원가입 mutation 추가
+  // 회원가입 mutation 추가
   const signupMutation = useMutation({
     mutationFn: registerUser,
     onSuccess: (data) => {
@@ -62,10 +72,14 @@ const SignupPage = () => {
     },
     onError: (error) => {
       console.error("회원가입 실패:", error);
+      if (error instanceof AxiosError && error.response?.status === 429) {
+        alert("요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
       alert("회원가입에 실패했습니다. 다시 시도해주세요.");
     },
   });
-  // ✅ 인증번호 발송 mutation 추가
+  // 인증번호 발송 mutation 추가
   const sendVerificationCodeMutation = useMutation({
     mutationFn: sendVerificationCode,
     onSuccess: (data) => {
@@ -73,6 +87,9 @@ const SignupPage = () => {
     },
     onError: (error) => {
       console.error("인증번호 발송 실패:", error);
+      if (error instanceof AxiosError && error.response?.status === 429) {
+        alert("요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
+      }
     },
   });
 
@@ -109,7 +126,7 @@ const SignupPage = () => {
       nickname: "",
     },
     resolver: zodResolver(schema), // 유효성 검사 규칙
-    mode: "onBlur", // ✅ onBlur로 설정 (onChange 아님!)
+    mode: "onBlur", // onBlur로 설정 (onChange 아님!)
   });
 
   // email 조합 완성
@@ -118,7 +135,7 @@ const SignupPage = () => {
   // const emailDomain = watch("emailDomain");
   // const email = emailId && emailDomain ? `${emailId}@${emailDomain}` : "";
 
-  // ✅ 약관 동의 핸들러
+  // 약관 동의 핸들러
   const handleAgreementChange = (id: string) => {
     if (id === "all") {
       const newValue = !checkedAgreements.all;
@@ -138,10 +155,10 @@ const SignupPage = () => {
     }
   };
 
-  // ✅ 필수 약관 동의 여부 확인
+  // 필수 약관 동의 여부 확인
   const isRequiredAgreed = checkedAgreements.terms && checkedAgreements.privacy;
 
-  // ✅ 회원가입 완료 API 호출 => mutaion으로 실제 api 연결
+  // 회원가입 완료 API 호출 => mutaion으로 실제 api 연결
   const handleCompleteSignup = () => {
     if (signupData) {
       signupMutation.mutate({
@@ -152,7 +169,7 @@ const SignupPage = () => {
     }
   };
 
-  // ✅ 다음 단계로 이동
+  // 다음 단계로 이동
   const handleNext = async () => {
     if (step === 1) {
       // Step 1: 필수 약관 동의 확인
@@ -183,22 +200,26 @@ const SignupPage = () => {
           nickname,
         });
 
-        // ✅ 인증번호 발송 API 호출 => mutaion으로 실제 api 연결
+        // 인증번호 발송 API 호출 => mutaion으로 실제 api 연결
         sendVerificationCodeMutation.mutate(
           {
             email,
           },
           {
             onSuccess: () => setStep(3),
-            onError: () =>
-              alert("인증번호 발송에 실패했습니다. 다시 시도해주세요."),
+            onError: (error) => {
+              if (error instanceof AxiosError && error.response?.status === 429) {
+                return;
+              }
+              alert("인증번호 발송에 실패했습니다. 다시 시도해주세요.");
+            },
           }
         );
       }
     }
   };
 
-  // ✅ 이전 단계로 이동
+  // 이전 단계로 이동
   // const handlePrev = () => {
   //   setStep((prev) => Math.max(prev - 1, 1));
   // };
@@ -216,11 +237,11 @@ const SignupPage = () => {
         {/* 헤더 */}
         <p className="typo-h1 text-color-highest">회원가입</p>
         {/* 단계 표시 */}
-        {/* ✅ Step Bar 컴포넌트 사용 */}
+        {/* Step Bar 컴포넌트 사용 */}
         <SignupStepBar currentStep={step} />
 
         <div className="w-full px-30 py-16 rounded-xl bg-white flex flex-col items-center justify-center">
-          {/* ✅ 폼 컨테이너 */}
+          {/* 폼 컨테이너 */}
           <form onSubmit={(e) => void handleSubmit(onSubmit)(e)}>
             {step === 1 && (
               <SignupStep1

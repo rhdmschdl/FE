@@ -70,6 +70,13 @@ export default function ProfileBadge({
       setIsEditing(false);
       return;
     }
+    // 닉네임 유효성 검사: 2~10자, 한글/영어/숫자/-/_ 만 허용
+    const nicknameRegex = /^[가-힣a-zA-Z0-9-_]{2,10}$/;
+    if (!nicknameRegex.test(next)) {
+      alert("2~10자 이내 한글, 영어, 숫자, -, _ 중에 작성해 주세요.");
+      cancelEdit();
+      return;
+    }
     try {
       await onRename?.(next);
       // 만약 부모가 displayName을 업데이트해주지 않으면 로컬에 반영
