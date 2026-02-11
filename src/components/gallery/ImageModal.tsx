@@ -16,7 +16,6 @@ const SCALE_STEP = 0.25;
 export default function ImageModal({
   open,
   imageUrl,
-  fileName,
   alt = "image",
   onClose,
 }: ImageModalProps) {
@@ -144,7 +143,9 @@ export default function ImageModal({
     setScaleInput("");
   };
 
-  const handleScaleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleScaleInputKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
     if (e.key === "Enter") {
       e.currentTarget.blur();
     } else if (e.key === "Escape") {
