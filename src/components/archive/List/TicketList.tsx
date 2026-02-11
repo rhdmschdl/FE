@@ -50,6 +50,7 @@ const TicketList = ({
                 id={ticket.id}
                 title={ticket.title}
                 date={ticket.date}
+                thumbnail={ticket.thumbnail ?? undefined}
                 onClick={handleNavigateToTicketBook}
               />
             ))}

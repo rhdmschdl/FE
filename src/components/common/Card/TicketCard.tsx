@@ -1,24 +1,31 @@
 import barcode from "@/assets/icon/bar.svg";
 import { formatDate } from "./DiaryCard";
+import clsx from "clsx";
 
 interface TicketCardProps {
   id?: number;
-  /** 티켓 이름/제목 */
   title?: string;
   date?: string;
-  /** 클릭 이벤트 핸들러 */
+  thumbnail?: string | null;
   onClick?: () => void;
-  /** 추가 커스텀 클래스명 */
   className?: string;
 }
 
-const TicketCard = ({ title, date, onClick, className }: TicketCardProps) => {
+const TicketCard = ({
+  title,
+  date,
+  thumbnail,
+  onClick,
+  className,
+}: TicketCardProps) => {
   return (
     <div
       onClick={onClick}
-      className={`relative w-[360px] h-[360px] cursor-pointer ${
-        className || ""
-      }`}
+      className={clsx(
+        "relative w-[360px] h-[360px] cursor-pointer overflow-hidden rounded-xl",
+        className
+      )}
+      aria-hidden={false}
     >
       {/* 티켓 배경 SVG */}
       <svg
@@ -34,19 +41,48 @@ const TicketCard = ({ title, date, onClick, className }: TicketCardProps) => {
           fill="#D5E8F9"
         />
       </svg>
-
       {/* 티켓 내용 영역 */}
-      <div className="absolute inset-0 flex flex-col pt-9 px-8 gap-[51px]">
-        {/* 티켓 이름 */}
-        {title ? (
-          <div className="h-[153px] flex items-center justify-center p-2.5 rounded-xl bg-[#808080]">
-            <p className="typo-h2-semibold text-color-lowest">{title}</p>
-          </div>
-        ) : (
-          <div className="h-[153px] flex items-center justify-center p-2.5 rounded-xl bg-[#808080]">
-            <p className="typo-h2-semibold text-color-lowest">티켓 이름</p>
-          </div>
-        )}
+      <div className="absolute inset-0 flex flex-col pt-9 px-8 gap-[51px] z-10">
+        {/* 제목 박스: 내부에 섬네일 배경 레이어를 두어 제목 부분에만 배경 적용 */}
+        <div className="relative h-[153px] rounded-xl overflow-hidden">
+          {thumbnail ? (
+            // 썸네일이 있을 때: 배경 이미지(블러+밝기 보정) + 반투명 오버레이 + 텍스트
+            <>
+              <div
+                aria-hidden="true"
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: `url(${thumbnail})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  transform: "scale(1.06)",
+                  filter: "blur(2px) brightness(0.65)",
+                }}
+              />
+              {/* 가독성 보강을 위한 반투명 오버레이 */}
+              <div
+                aria-hidden="true"
+                className="absolute inset-0"
+                style={{ backgroundColor: "rgba(0,0,0,0.22)" }}
+              />
+              {/* 텍스트는 상대 위치로 위에 올림 */}
+              <div className="relative z-10 flex items-center justify-center h-full p-2.5">
+                <p className="typo-h2-semibold text-color-lowest text-center break-words px-2">
+                  {title ?? "티켓 이름"}
+                </p>
+              </div>
+            </>
+          ) : (
+            // 썸네일이 없을 때: 기존 회색 박스 형태 그대로 출력
+            <div className="relative w-full h-full flex items-center justify-center p-2.5 rounded-xl bg-[#808080]">
+              <p className="typo-h2-semibold text-color-lowest text-center break-words px-2">
+                {title ?? "티켓 이름"}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* 하단 바코드 + 날짜 */}
         <div className="flex flex-col gap-[7px] items-center">
           <img src={barcode} alt="barcode" className="w-50 h-18" />
           {date ? (
@@ -59,5 +95,4 @@ const TicketCard = ({ title, date, onClick, className }: TicketCardProps) => {
     </div>
   );
 };
-
 export default TicketCard;
