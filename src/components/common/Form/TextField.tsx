@@ -55,9 +55,7 @@ export default function TextField({
             placeholder={placeholder}
             onChange={(e) => onChange(e.target.value)}
             aria-invalid={!!error}
-            aria-describedby={
-              error ? errorId : showCount && maxLength ? countId : undefined
-            }
+            aria-describedby={error ? errorId : undefined}
             className={clsx(
               commonCls,
               baseTextColor,
@@ -68,15 +66,6 @@ export default function TextField({
               "resize-none min-h-174 py-5"
             )}
           />
-          {showCount && typeof maxLength === "number" && (
-            <div
-              id={countId}
-              className="ml-2.5 absolute right-4 bottom-6.5 typo-body2 text-color-mid"
-              aria-hidden="true"
-            >
-              ({value.length}/{maxLength})
-            </div>
-          )}
         </>
       ) : (
         <>
@@ -98,13 +87,13 @@ export default function TextField({
               focusCls,
               placeholderCls,
               inputClassName,
-              "h-10 py-[9.5px]"
+              "h-10 py-[9.5px] pr-28"
             )}
           />
           {showCount && typeof maxLength === "number" && (
             <div
               id={countId}
-              className="ml-2.5 absolute right-4 bottom-3 typo-body2 text-color-mid"
+              className="absolute right-4 bottom-3 typo-body2 text-color-mid"
               aria-hidden="true"
             >
               ({value.length}/{maxLength})
